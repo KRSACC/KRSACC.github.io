@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>KRS ACCOUNT</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #111;
+      color: #fff;
+      padding: 15px;
+      text-align: center;
+    }
+    section {
+      padding: 20px;
+    }
+    .box {
+      background: #fff;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+    .product {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+    .product img {
+      width: 120px;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 8px;
+    }
+    button {
+      padding: 10px 15px;
+      border: none;
+      background: #111;
+      color: #fff;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>OOO KRS ACCOUNT</h1>
+  <p>수동 충전 · 잔액 구매</p>
+</header>
+
+<section>
+  <div class="box">
+    <h2>💳 충전 안내</h2>
+    <p>토스증권 134-01-503079</p>
+    <p>입금자명: 닉네임+금액 (예: 범규10000)</p>
+    <button onclick="location.href='충전폼링크'">입금 확인하기</button>
+  </div>
+
+  <div class="box">
+    <h2>🛒 상품 구매</h2>
+
+    <div class="product">
+      <img src="product1.jpg">
+      <div>
+        <h3>상품 A</h3>
+        <p>가격: 3,000P</p>
+        <button onclick="location.href='구매폼링크'">구매하기</button>
+      </div>
+    </div>
+
+    <br>
+
+    <div class="product">
+      <img src="product2.jpg">
+      <div>
+        <h3>상품 B</h3>
+        <p>가격: 7,000P</p>
+        <button onclick="location.href='구매폼링크'">구매하기</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="box">
+    <h2>📩 문의</h2>
+    <p>디스코드 티켓으 문의</p>
+  </div>
+</section>
+
+</body>
+</html>
