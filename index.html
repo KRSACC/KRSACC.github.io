@@ -41,7 +41,7 @@
 
 <div class="box">
   <h2>내 잔액</h2>
-  <p><strong>0원</strong></p>
+  <p><strong id="balance">0원</strong></p>
   <button onclick="location.href='charge.html'">충전하기</button>
 </div>
 
@@ -49,6 +49,19 @@
   <h2>상품</h2>
   <button onclick="location.href='shop.html'">상품 보러가기</button>
 </div>
+<script>
+  // 초기 잔액 설정 (처음 1번만)
+  if (localStorage.getItem("balance") === null) {
+    localStorage.setItem("balance", 0);
+  }
+
+  function updateBalance() {
+    document.getElementById("balance").innerText =
+      localStorage.getItem("balance") + "원";
+  }
+
+  updateBalance();
+</script>
 
 </body>
 </html>
