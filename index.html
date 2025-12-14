@@ -43,7 +43,9 @@
   <h2>내 잔액</h2>
   <p><strong id="balance">0원</strong></p>
   <button onclick="location.href='charge.html'">충전하기</button>
+  <button onclick="addBalance(10000)">+10,000원 (관리자)</button>
 </div>
+
 
 <div class="box">
   <h2>상품</h2>
@@ -58,6 +60,13 @@
   function updateBalance() {
     document.getElementById("balance").innerText =
       localStorage.getItem("balance") + "원";
+  }
+
+  // ✅ 관리자 충전 함수 추가
+  function addBalance(amount) {
+    let current = parseInt(localStorage.getItem("balance"));
+    localStorage.setItem("balance", current + amount);
+    updateBalance();
   }
 
   updateBalance();
