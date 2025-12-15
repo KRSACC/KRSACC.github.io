@@ -68,6 +68,17 @@
   console.log("Firebase 연결 완료");
 </script>
 
+<script type="module">
+  import { auth } from "./firebase.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      // 로그인 안 되어있으면 로그인 페이지로 보내기
+      location.href = "login.html";
+    }
+  });
+</script>
 
 </body>
 </html>
