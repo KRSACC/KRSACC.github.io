@@ -11,12 +11,10 @@
     }
     *{box-sizing:border-box}
     body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
-    header{
-      background:linear-gradient(180deg,#111 0%, #0c0c0c 100%);
-      color:#fff;padding:26px 16px;text-align:center;
-    }
+    header{background:linear-gradient(180deg,#111 0%,#0c0c0c 100%);color:#fff;padding:26px 16px;text-align:center}
     header h1{margin:0;font-size:34px;letter-spacing:1px}
     header p{margin:8px 0 0;opacity:.9}
+
     .topbar{
       background:#fff;border-bottom:1px solid var(--line);
       display:flex;gap:10px;align-items:center;justify-content:space-between;
@@ -26,27 +24,23 @@
     .topbar .right{display:flex;gap:8px;flex-wrap:wrap}
     .btn{
       padding:10px 12px;border:none;border-radius:10px;cursor:pointer;
-      background:var(--btn);color:#fff;font-weight:700
+      background:var(--btn);color:#fff;font-weight:800
     }
     .btn.secondary{background:var(--btn2)}
     .btn.danger{background:var(--danger)}
-    .wrap{max-width:900px;margin:18px auto;padding:0 14px}
+    .wrap{max-width:980px;margin:18px auto;padding:0 14px}
     .card{
       background:var(--card);border-radius:var(--radius);
       padding:18px;margin:14px 0;border:1px solid #f0f0f0;
       box-shadow:0 1px 0 rgba(0,0,0,.03);
     }
-    .muted{color:var(--muted);font-size:13px;line-height:1.45}
     .title{font-size:18px;font-weight:900;margin:0 0 8px}
-    .kv{display:grid;grid-template-columns:140px 1fr;gap:10px;margin-top:10px}
-    .kv div{padding:10px;border:1px solid var(--line);border-radius:12px;background:#fff}
-    .kv .k{color:var(--muted);font-weight:700}
+    .muted{color:var(--muted);font-size:13px;line-height:1.45}
+    .kv{display:grid;grid-template-columns:160px 1fr;gap:10px;margin-top:10px}
+    .kv .cell{padding:10px;border:1px solid var(--line);border-radius:12px;background:#fff}
+    .kv .k{color:var(--muted);font-weight:800}
     .row{display:flex;gap:10px;flex-wrap:wrap}
-    a.linkbtn{display:inline-block;text-decoration:none}
-    @media (max-width:560px){
-      header h1{font-size:28px}
-      .kv{grid-template-columns:1fr}
-    }
+    @media (max-width:560px){ header h1{font-size:28px} .kv{grid-template-columns:1fr} }
   </style>
 </head>
 <body>
@@ -68,14 +62,18 @@
 
   <div class="wrap">
     <div class="card">
-      <div class="title">계정</div>
+      <div class="title">계정 정보</div>
       <div class="kv">
-        <div class="k">아이디(이메일)</div><div id="email">불러오는 중...</div>
-        <div class="k">UID</div><div id="uid">-</div>
-        <div class="k">잔액</div><div id="balance">-</div>
+        <div class="cell k">아이디(이메일)</div><div class="cell" id="email">불러오는 중...</div>
+        <div class="cell k">UID</div><div class="cell" id="uid">-</div>
+        <div class="cell k">잔액</div><div class="cell" id="balance">-</div>
+        <div class="cell k">비밀번호</div><div class="cell" id="pw">보안상 표시 불가</div>
+        <div class="cell k">마지막 로그인</div><div class="cell" id="lastLogin">-</div>
+        <div class="cell k">가입/생성</div><div class="cell" id="createdAt">-</div>
       </div>
 
       <div class="row" style="margin-top:12px;">
+        <button class="btn secondary" id="resetPwBtn">비밀번호 재설정 메일 보내기</button>
         <button class="btn" id="adminBtn" style="display:none;">관리자 페이지</button>
       </div>
 
@@ -85,13 +83,8 @@
     <div class="card">
       <div class="title">바로가기</div>
       <div class="row">
-        <!-- ✅ 원하는 링크로 바꾸기 -->
-        <a class="linkbtn" href="https://discord.com" target="_blank" rel="noopener">
-          <button class="btn secondary">디스코드</button>
-        </a>
-        <a class="linkbtn" href="https://t.me" target="_blank" rel="noopener">
-          <button class="btn secondary">텔레그램</button>
-        </a>
+        <a href="https://discord.com" target="_blank" rel="noopener"><button class="btn secondary">디스코드</button></a>
+        <a href="https://t.me" target="_blank" rel="noopener"><button class="btn secondary">텔레그램</button></a>
       </div>
       <div class="muted">※ 새 창으로 열립니다.</div>
     </div>
@@ -99,28 +92,43 @@
 
   <script type="module">
     import { auth, db } from "./firebase.js";
-    import {
-      onAuthStateChanged,
-      signOut
-    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
+    import { onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const ADMIN_EMAIL = "killgg0108@gmail.com";
 
     const loginLabel = document.getElementById("loginLabel");
-    const emailEl    = document.getElementById("email");
-    const uidEl      = document.getElementById("uid");
-    const balanceEl  = document.getElementById("balance");
-    const statusMsg  = document.getElementById("statusMsg");
-    const adminBtn   = document.getElementById("adminBtn");
-    const logoutBtn  = document.getElementById("logoutBtn");
+    const emailEl = document.getElementById("email");
+    const uidEl = document.getElementById("uid");
+    const balanceEl = document.getElementById("balance");
+    const lastLoginEl = document.getElementById("lastLogin");
+    const createdAtEl = document.getElementById("createdAt");
+    const statusMsg = document.getElementById("statusMsg");
+
+    const logoutBtn = document.getElementById("logoutBtn");
+    const resetPwBtn = document.getElementById("resetPwBtn");
+    const adminBtn = document.getElementById("adminBtn");
 
     function fmt(n){ return (n||0).toLocaleString(); }
 
     logoutBtn.onclick = async () => {
       await signOut(auth);
       location.href = "login.html";
+    };
+
+    resetPwBtn.onclick = async () => {
+      const user = auth.currentUser;
+      if (!user || !user.email) {
+        alert("이메일 계정만 재설정 메일을 보낼 수 있어요.");
+        return;
+      }
+      try {
+        await sendPasswordResetEmail(auth, user.email);
+        alert("비밀번호 재설정 메일을 보냈어요!");
+      } catch (e) {
+        console.error(e);
+        alert("오류: " + (e?.message || e));
+      }
     };
 
     adminBtn.onclick = () => location.href = "admin.html";
@@ -135,20 +143,31 @@
       emailEl.textContent = user.email || "(이메일 없음)";
       uidEl.textContent = user.uid;
 
-      // 관리자 버튼 자동 표시
-      if ((user.email || "") === ADMIN_EMAIL) {
-        adminBtn.style.display = "inline-block";
-      }
+      // Auth 메타데이터(가능하면 표시)
+      const ll = user.metadata?.lastSignInTime ? new Date(user.metadata.lastSignInTime).toLocaleString() : "-";
+      const ca = user.metadata?.creationTime ? new Date(user.metadata.creationTime).toLocaleString() : "-";
+      lastLoginEl.textContent = ll;
+      createdAtEl.textContent = ca;
 
+      // 관리자 버튼 자동 표시
+      if ((user.email || "") === ADMIN_EMAIL) adminBtn.style.display = "inline-block";
+
+      // Firestore users 잔액 표시
       try {
         const userRef = doc(db, "users", user.uid);
         const snap = await getDoc(userRef);
+
         if (snap.exists()) {
           const data = snap.data() || {};
           balanceEl.textContent = fmt(data.balance || 0) + "원";
+
+          // Firestore 쪽 createdAt도 있으면 같이 보여주기
+          if (data.createdAt) {
+            createdAtEl.textContent = new Date(data.createdAt).toLocaleString();
+          }
         } else {
           balanceEl.textContent = "0원";
-          statusMsg.textContent = "users 문서가 아직 없어요. (회원가입/첫 접속 시 생성되게 구성 필요)";
+          statusMsg.textContent = "users 문서가 없어요. (회원가입/첫 접속 시 users 생성 로직이 필요)";
         }
       } catch (e) {
         console.error(e);
