@@ -22,11 +22,10 @@
 
     createUserWithEmailAndPassword(auth, email, password)
       .then(() => {
-        alert("회원가입 완료");
-        location.href = "index.html";
-      })
-      .catch(err => alert(err.message));
-  }
+  alert("회원가입 완료!");
+  window.location.replace("index.html");
+})
+
 </script>
 
 </body>
