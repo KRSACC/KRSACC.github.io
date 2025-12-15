@@ -1,36 +1,155 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>로그인 - KRSACC</title>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 400px;
+      overflow: hidden;
+      animation: slideUp 0.5s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px 30px;
+      text-align: center;
+    }
+
+    .form-container { padding: 40px 30px; }
+
+    .form-group { margin-bottom: 20px; }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: #333;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .link {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+
+    .link a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .error {
+      color: red;
+      font-size: 13px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+  </style>
 </head>
+
 <body>
-  <h2>로그인</h2>
 
-  <input id="email" type="email" placeholder="이메일" />
-  <br /><br />
-  <input id="password" type="password" placeholder="비밀번호" />
-  <br /><br />
+<div class="container">
+  <div class="header">
+    <h1>환영합니다 👋</h1>
+    <p>계정에 로그인하세요</p>
+  </div>
 
-  <button id="loginBtn">로그인</button>
-  <p><a href="signup.html">회원가입</a></p>
+  <div class="form-container">
+    <div class="error" id="error"></div>
 
-  <script type="module">
-    import { auth } from "./firebase.js";
-    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    <div class="form-group">
+      <label>이메일 (아이디로 사용됩니다)</label>
+      <input type="email" id="email" placeholder="your@email.com">
+    </div>
 
-    document.getElementById("loginBtn").addEventListener("click", async () => {
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
+    <div class="form-group">
+      <label>비밀번호</label>
+      <input type="password" id="password" placeholder="••••••••">
+    </div>
 
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        alert("로그인 성공!");
-        location.href = "index.html";
-      } catch (e) {
-        alert("로그인 실패: " + e.message);
-      }
-    });
-  </script>
+    <button id="loginBtn">로그인</button>
+
+    <div class="link">
+      계정이 없으신가요? <a href="signup.html">회원가입</a>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth } from "./firebase.js";
+  import { signInWithEmailAndPassword } from
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const errorEl = document.getElementById("error");
+
+  document.getElementById("loginBtn").onclick = async () => {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    if (!email || !password) {
+      errorEl.innerText = "이메일과 비밀번호를 입력하세요.";
+      return;
+    }
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      location.href = "index.html";
+    } catch (e) {
+      errorEl.innerText = "로그인 실패: " + e.message;
+    }
+  };
+</script>
+
 </body>
 </html>
