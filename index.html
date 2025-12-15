@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>KRSACC</title>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -11,116 +12,135 @@
       margin: 0;
       padding: 0;
     }
+
     header {
       background: #111;
       color: white;
       padding: 20px;
       text-align: center;
     }
+
+    .topbar {
+      background: #fff;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+    }
+
+    .topbar .user {
+      color: #333;
+    }
+
+    .topbar button {
+      padding: 6px 10px;
+      border: none;
+      background: #111;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-left: 6px;
+    }
+
     .box {
       background: white;
       margin: 20px;
       padding: 20px;
       border-radius: 10px;
     }
-    button {
-      padding: 10px 15px;
-      border: none;
-      background: black;
+
+    .links {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .links a {
+      text-decoration: none;
+      padding: 10px 14px;
+      border-radius: 8px;
       color: white;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-right: 8px;
-      margin-top: 8px;
+      font-size: 14px;
     }
-    .muted {
-      color: #777;
-      font-size: 13px;
-      margin-top: 8px;
-    }
+
+    .discord { background: #5865F2; }
+    .telegram { background: #2AABEE; }
   </style>
 </head>
 
 <body>
-  <header>
-    <h1>KRACT</h1>
-    <p>각종 게임 · OTT 전국 최저가</p>
-  </header>
 
-  <div class="box">
-    <h2>내 잔액</h2>
-    <p><strong id="balance">불러오는 중...</strong></p>
-
-    <button onclick="location.href='charge.html'">충전하기</button>
-
-    <!-- ✅ 관리자만 보이게 할 버튼 -->
-    <button id="adminAddBtn" style="display:none;">+10,000원 (관리자)</button>
-
-    <div class="muted" id="userInfo"></div>
+<!-- 로그인 상태 바 -->
+<div class="topbar">
+  <div class="user" id="userInfo">로그인 확인 중...</div>
+  <div>
+    <button id="logoutBtn" style="display:none;">로그아웃</button>
   </div>
+</div>
 
-  <div class="box">
-    <h2>상품</h2>
-    <button onclick="location.href='shop.html'">상품 보러가기</button>
+<header>
+  <h1>KRSACC</h1>
+  <p>수동 충전 · 수동 구매 시스템</p>
+</header>
+
+<div class="box">
+  <h2>내 잔액</h2>
+  <p><strong id="balance">불러오는 중...</strong></p>
+  <button onclick="location.href='charge.html'">충전하기</button>
+</div>
+
+<div class="box">
+  <h2>상품</h2>
+  <button onclick="location.href='shop.html'">상품 보러가기</button>
+</div>
+
+<div class="box">
+  <h2>커뮤니티 / 문의</h2>
+  <div class="links">
+    <!-- 🔗 여기에 네 실제 링크 넣으면 됨 -->
+    <a class="discord" href="https://discord.gg/여기에코드" target="_blank">
+      Discord
+    </a>
+    <a class="telegram" href="https://t.me/여기에아이디" target="_blank">
+      Telegram
+    </a>
   </div>
+</div>
 
-  <script type="module">
-    import { auth, db } from "./firebase.js";
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { doc, getDoc, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+<script type="module">
+  import { auth, db } from "./firebase.js";
+  import { onAuthStateChanged, signOut } from
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { doc, getDoc } from
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    // ✅ 여기 “네 관리자 계정 이메일”로 바꿔줘 (여러 개면 배열에 추가)
-    const ADMIN_EMAILS = ["killgg0108@gmail.com"];
+  const userInfo = document.getElementById("userInfo");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const balanceEl = document.getElementById("balance");
 
-    const balanceEl = document.getElementById("balance");
-    const userInfoEl = document.getElementById("userInfo");
-    const adminAddBtn = document.getElementById("adminAddBtn");
-
-    async function ensureUserDoc(user) {
-      const ref = doc(db, "users", user.uid);
-      const snap = await getDoc(ref);
-
-      if (!snap.exists()) {
-        await setDoc(ref, {
-          email: user.email || "",
-          balance: 0,
-          createdAt: Date.now()
-        });
-      }
-      return ref;
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      location.href = "login.html";
+      return;
     }
 
-    async function refreshBalance(userRef) {
-      const snap = await getDoc(userRef);
-      const data = snap.data() || {};
-      balanceEl.innerText = (data.balance || 0) + "원";
-    }
+    userInfo.innerText = `로그인됨: ${user.email}`;
+    logoutBtn.style.display = "inline-block";
 
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        alert("로그인이 필요합니다.");
-        location.href = "login.html";
-        return;
-      }
+    const ref = doc(db, "users", user.uid);
+    const snap = await getDoc(ref);
+    const data = snap.data() || {};
+    balanceEl.innerText = (data.balance || 0).toLocaleString() + "원";
+  });
 
-      // 유저 문서 보장 + 잔액 표시
-      const userRef = await ensureUserDoc(user);
-      await refreshBalance(userRef);
+  logoutBtn.onclick = async () => {
+    await signOut(auth);
+    location.href = "login.html";
+  };
+</script>
 
-      userInfoEl.innerText = "로그인: " + (user.email || user.uid);
-
-      // ✅ 관리자면 버튼 보이게 + 클릭 시 잔액 +10000
-      const isAdmin = ADMIN_EMAILS.includes(user.email);
-      if (isAdmin) {
-        adminAddBtn.style.display = "inline-block";
-
-        adminAddBtn.onclick = async () => {
-          await updateDoc(userRef, { balance: increment(10000) });
-          await refreshBalance(userRef);
-          alert("관리자 충전 +10,000원 완료");
-        };
-      }
-    });
-  </script>
 </body>
 </html>
