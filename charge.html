@@ -61,7 +61,7 @@
   import {
     doc, getDoc, setDoc,
     collection, addDoc,
-    query, where, orderBy, getDocs
+    query, where, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const balanceEl = document.getElementById("balance");
@@ -92,12 +92,13 @@
     return "대기중";
   }
 
+  // ✅ 인덱스 없이 동작하는 방식:
+  // where(uid == ...) 만으로 가져오고, JS로 createdAt 내림차순 정렬
   async function loadMyRequests(uid) {
     myRequestsEl.innerHTML = "";
     const q = query(
       collection(db, "chargeRequests"),
-      where("uid", "==", uid),
-      orderBy("createdAt", "desc")
+      where("uid", "==", uid)
     );
     const snap = await getDocs(q);
 
@@ -106,14 +107,20 @@
       return;
     }
 
-    snap.forEach(d => {
-      const r = d.data();
+    const arr = [];
+    snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
+
+    // createdAt 내림차순 정렬
+    arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    arr.forEach(r => {
       myRequestsEl.innerHTML += `
         <div class="item">
           <div><b>${(r.amount || 0).toLocaleString()}원</b>
           <span class="badge">${statusText(r.status)}</span></div>
           <div class="muted">입금자명: ${r.depositor || "-"}</div>
           <div class="muted">요청시간: ${r.createdAt ? new Date(r.createdAt).toLocaleString() : "-"}</div>
+          ${r.note ? `<div class="muted">메모: ${r.note}</div>` : ""}
         </div>
       `;
     });
@@ -133,26 +140,30 @@
     await loadMyRequests(user.uid);
 
     submitBtn.onclick = async () => {
-      const depositor = depositorEl.value.trim();
-      const amount = parseInt(amountEl.value, 10);
+      try {
+        const depositor = depositorEl.value.trim();
+        const amount = parseInt(amountEl.value, 10);
 
-      if (!depositor) return alert("입금자명을 입력해줘.");
-      if (!amount || amount <= 0) return alert("충전 금액을 올바르게 입력해줘.");
+        if (!depositor) return alert("입금자명을 입력해줘.");
+        if (!amount || amount <= 0) return alert("충전 금액을 올바르게 입력해줘.");
 
-      await addDoc(collection(db, "chargeRequests"), {
-        uid: user.uid,
-        email: user.email || "",
-        depositor,
-        amount,
-        status: "pending",
-        createdAt: Date.now()
-      });
+        await addDoc(collection(db, "chargeRequests"), {
+          uid: user.uid,
+          email: user.email || "",
+          depositor,
+          amount,
+          status: "pending",
+          createdAt: Date.now()
+        });
 
-      alert("충전 요청이 접수되었습니다.\n입금 확인 후 반영됩니다.");
-      depositorEl.value = "";
-      amountEl.value = "";
+        alert("충전 요청이 접수되었습니다.\n입금 확인 후 반영됩니다.");
+        depositorEl.value = "";
+        amountEl.value = "";
 
-      await loadMyRequests(user.uid);
+        await loadMyRequests(user.uid);
+      } catch (e) {
+        alert("오류: " + e.message);
+      }
     };
   });
 </script>
