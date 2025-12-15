@@ -1,33 +1,36 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <title>로그인</title>
+  <meta charset="UTF-8" />
+  <title>로그인 - KRSACC</title>
 </head>
 <body>
+  <h2>로그인</h2>
 
-<h2>로그인</h2>
-<input type="email" id="email" placeholder="이메일"><br>
-<input type="password" id="password" placeholder="비밀번호"><br>
-<button onclick="login()">로그인</button>
+  <input id="email" type="email" placeholder="이메일" />
+  <br /><br />
+  <input id="password" type="password" placeholder="비밀번호" />
+  <br /><br />
 
-<script type="module">
-  import { auth } from "./firebase.js";
-  import { signInWithEmailAndPassword } from
-    "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  <button id="loginBtn">로그인</button>
+  <p><a href="signup.html">회원가입</a></p>
 
-  window.login = function () {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+  <script type="module">
+    import { auth } from "./firebase.js";
+    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-    signInWithEmailAndPassword(auth, email, password)
-      .then(() => {
-        alert("로그인 성공");
+    document.getElementById("loginBtn").addEventListener("click", async () => {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        alert("로그인 성공!");
         location.href = "index.html";
-      })
-      .catch(err => alert(err.message));
-  }
-</script>
-
+      } catch (e) {
+        alert("로그인 실패: " + e.message);
+      }
+    });
+  </script>
 </body>
 </html>
