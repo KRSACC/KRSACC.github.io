@@ -11,8 +11,6 @@
     label { display:block; margin-top:10px; font-size:14px; color:#333; }
     input { width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; margin-top:6px; font-size:14px; }
     button { width:100%; padding:12px; border:none; border-radius:10px; background:#111; color:#fff; cursor:pointer; margin-top:12px; }
-    .row { display:flex; gap:10px; }
-    .row > div { flex:1; }
     .muted { color:#777; font-size:13px; margin-top:6px; line-height:1.45; }
     .list { margin-top:10px; }
     .item { border:1px solid #eee; border-radius:10px; padding:12px; margin-top:10px; }
@@ -31,9 +29,9 @@
 <div class="card">
   <h3>입금 안내</h3>
   <div class="muted">
-    은행: <b>토스증권<br/>
+    은행: <b>토스증권</b><br/>
     계좌번호: <b>134-01-503079</b><br/>
-    입금자명: <b>로그인한 이메일/아이디로 입금</b> 추천
+    입금자명: <b>로그인한 이메일/아이디</b> 권장
   </div>
 </div>
 
@@ -88,7 +86,7 @@
     balanceEl.innerText = (data.balance || 0) + "원";
   }
 
-  function statusBadge(status) {
+  function statusText(status) {
     if (status === "approved") return "승인됨";
     if (status === "rejected") return "거절됨";
     return "대기중";
@@ -102,18 +100,20 @@
       orderBy("createdAt", "desc")
     );
     const snap = await getDocs(q);
+
     if (snap.empty) {
       myRequestsEl.innerHTML = `<div class="muted">아직 요청 내역이 없습니다.</div>`;
       return;
     }
+
     snap.forEach(d => {
       const r = d.data();
       myRequestsEl.innerHTML += `
         <div class="item">
-          <div><b>${(r.amount || 0).toLocaleString()}원</b> <span class="badge">${statusBadge(r.status)}</span></div>
+          <div><b>${(r.amount || 0).toLocaleString()}원</b>
+          <span class="badge">${statusText(r.status)}</span></div>
           <div class="muted">입금자명: ${r.depositor || "-"}</div>
           <div class="muted">요청시간: ${r.createdAt ? new Date(r.createdAt).toLocaleString() : "-"}</div>
-          ${r.note ? `<div class="muted">메모: ${r.note}</div>` : ""}
         </div>
       `;
     });
@@ -132,7 +132,7 @@
     await loadBalance(userRef);
     await loadMyRequests(user.uid);
 
-    submitBtn.addEventListener("click", async () => {
+    submitBtn.onclick = async () => {
       const depositor = depositorEl.value.trim();
       const amount = parseInt(amountEl.value, 10);
 
@@ -153,7 +153,7 @@
       amountEl.value = "";
 
       await loadMyRequests(user.uid);
-    }, { once: true });
+    };
   });
 </script>
 
