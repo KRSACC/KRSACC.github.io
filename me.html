@@ -1,84 +1,31 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>내 정보 - KRSACC</title>
-  <style>
-    body { font-family: Arial, sans-serif; background:#f5f5f5; margin:0; padding:20px; }
-    h1 { text-align:center; margin: 8px 0 18px; }
-    .card { background:#fff; border-radius:12px; padding:18px; margin:12px auto; max-width:760px; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
-    button { padding:10px 12px; border:none; border-radius:10px; background:#111; color:#fff; cursor:pointer; }
-    button.secondary { background:#666; }
-    .muted { color:#777; font-size:13px; margin-top:6px; }
-    .item { border:1px solid #eee; border-radius:10px; padding:12px; margin-top:10px; }
-    .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#eee; font-size:12px; margin-left:6px; }
-  </style>
+<meta charset="UTF-8">
+<title>내 정보 - KRSACC</title>
 </head>
 <body>
 
 <h1>내 정보</h1>
-
-<div class="card">
-  <div id="status" class="muted">확인 중...</div>
-  <div class="row">
-    <button onclick="location.href='index.html'">메인</button>
-    <button class="secondary" onclick="location.href='charge.html'">충전</button>
-    <button class="secondary" onclick="location.href='shop.html'">상품</button>
-    <button class="secondary" id="adminBtn" style="display:none;">관리자 페이지</button>
-    <button class="secondary" id="logoutBtn">로그아웃</button>
-  </div>
-</div>
-
-<div class="card">
-  <h3>계정 정보</h3>
-  <div class="muted">이메일: <b id="email">-</b></div>
-  <div class="muted">UID: <b id="uid">-</b></div>
-  <div class="muted">잔액: <b id="balance">불러오는 중...</b></div>
-</div>
+<div id="info"></div>
+<h3>알림</h3>
+<div id="noti"></div>
 
 <script type="module">
-  import { auth, db } from "./firebase.js";
-  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { auth, db } from "./firebase.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  const ADMIN_EMAIL = "killgg0108@gmail.com";
+onAuthStateChanged(auth, async user => {
+  if (!user) location.href="login.html";
 
-  const emailEl = document.getElementById("email");
-  const uidEl = document.getElementById("uid");
-  const balanceEl = document.getElementById("balance");
-  const statusEl = document.getElementById("status");
-  const adminBtn = document.getElementById("adminBtn");
-  const logoutBtn = document.getElementById("logoutBtn");
+  const q = query(collection(db,"notifications"), where("uid","==",user.uid));
+  const snap = await getDocs(q);
 
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      location.href = "login.html";
-      return;
-    }
-
-    statusEl.innerText = "로그인됨";
-    emailEl.innerText = user.email;
-    uidEl.innerText = user.uid;
-
-    const ref = doc(db, "users", user.uid);
-    const snap = await getDoc(ref);
-    const data = snap.data() || {};
-    balanceEl.innerText = (data.balance || 0).toLocaleString() + "원";
-
-    // ✅ 관리자면 관리자 페이지 버튼 표시
-    if (user.email === ADMIN_EMAIL) {
-      adminBtn.style.display = "inline-block";
-      adminBtn.onclick = () => location.href = "admin.html";
-    }
-  });
-
-  logoutBtn.onclick = async () => {
-    await signOut(auth);
-    location.href = "login.html";
-  };
+  document.getElementById("noti").innerHTML = snap.empty
+    ? "알림 없음"
+    : snap.docs.map(d=>`<div>${d.data().message}</div>`).join("");
+});
 </script>
-
 </body>
 </html>
