@@ -104,4 +104,18 @@
 
 
 </body>
-</html>
+</html
+  
+<script type="module">
+  import { auth } from "./firebase.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      // 로그인 안 돼 있으면 로그인 페이지로
+      location.href = "login.html";
+    } else {
+      console.log("로그인 유지됨:", user.uid);
+    }
+  });
+</script>
