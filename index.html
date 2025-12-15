@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>KRSACC</title>
   <style>
     body {
@@ -29,104 +30,97 @@
       color: white;
       border-radius: 5px;
       cursor: pointer;
+      margin-right: 8px;
+      margin-top: 8px;
+    }
+    .muted {
+      color: #777;
+      font-size: 13px;
+      margin-top: 8px;
     }
   </style>
 </head>
+
 <body>
+  <header>
+    <h1>KRSACC</h1>
+    <p>수동 충전 · 수동 구매 시스템</p>
+  </header>
 
-<header>
-  <h1>KRSACC</h1>
-  <p>수동 충전 · 수동 구매 시스템</p>
-</header>
+  <div class="box">
+    <h2>내 잔액</h2>
+    <p><strong id="balance">불러오는 중...</strong></p>
 
-<div class="box">
-  <h2>내 잔액</h2>
-  <p><strong id="balance">0원</strong></p>
-  <button onclick="location.href='charge.html'">충전하기</button>
-  <button onclick="addBalance(10000)">+10,000원 (관리자)</button>
-</div>
+    <button onclick="location.href='charge.html'">충전하기</button>
 
+    <!-- ✅ 관리자만 보이게 할 버튼 -->
+    <button id="adminAddBtn" style="display:none;">+10,000원 (관리자)</button>
 
-<div class="box">
-  <h2>상품</h2>
-  <button onclick="location.href='shop.html'">상품 보러가기</button>
-</div>
-<script>
-  // 초기 잔액 설정 (처음 1번만)
-  if (localStorage.getItem("balance") === null) {
-    localStorage.setItem("balance", 0);
-  }
+    <div class="muted" id="userInfo"></div>
+  </div>
 
-  function updateBalance() {
-    document.getElementById("balance").innerText =
-      localStorage.getItem("balance") + "원";
-  }
-
-  // ✅ 관리자 충전 함수 추가
-  function addBalance(amount) {
-    let current = parseInt(localStorage.getItem("balance"));
-    localStorage.setItem("balance", current + amount);
-    updateBalance();
-  }
-
-  updateBalance();
-</script>
-  
-<script type="module">
-  import { auth, db } from "./firebase.js";
-
-  console.log("Firebase 연결 완료");
-</script>
+  <div class="box">
+    <h2>상품</h2>
+    <button onclick="location.href='shop.html'">상품 보러가기</button>
+  </div>
 
   <script type="module">
-  import { auth } from "./firebase.js";
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { doc, getDoc, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  onAuthStateChanged(auth, (user) => {
-    if (!user) {
-      alert("로그인이 필요합니다.");
-      location.href = "login.html";
+    // ✅ 여기 “네 관리자 계정 이메일”로 바꿔줘 (여러 개면 배열에 추가)
+    const ADMIN_EMAILS = ["killgg0108@gmail.com"];
+
+    const balanceEl = document.getElementById("balance");
+    const userInfoEl = document.getElementById("userInfo");
+    const adminAddBtn = document.getElementById("adminAddBtn");
+
+    async function ensureUserDoc(user) {
+      const ref = doc(db, "users", user.uid);
+      const snap = await getDoc(ref);
+
+      if (!snap.exists()) {
+        await setDoc(ref, {
+          email: user.email || "",
+          balance: 0,
+          createdAt: Date.now()
+        });
+      }
+      return ref;
     }
-  });
-</script>
 
-  <script type="module">
-  import { auth } from "./firebase.js";
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-  onAuthStateChanged(auth, (user) => {
-    if (!user) {
-      alert("로그인이 필요합니다.");
-      location.href = "login.html";
+    async function refreshBalance(userRef) {
+      const snap = await getDoc(userRef);
+      const data = snap.data() || {};
+      balanceEl.innerText = (data.balance || 0) + "원";
     }
-  });
-</script>
 
-<script type="module">
-  import { auth } from "./firebase.js";
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("로그인이 필요합니다.");
+        location.href = "login.html";
+        return;
+      }
 
-  onAuthStateChanged(auth, (user) => {
-    if (!user) {
-      // 로그인 안 되어있으면 로그인 페이지로 보내기
-      location.href = "login.html";
-    }
-  });
-</script>
+      // 유저 문서 보장 + 잔액 표시
+      const userRef = await ensureUserDoc(user);
+      await refreshBalance(userRef);
 
+      userInfoEl.innerText = "로그인: " + (user.email || user.uid);
+
+      // ✅ 관리자면 버튼 보이게 + 클릭 시 잔액 +10000
+      const isAdmin = ADMIN_EMAILS.includes(user.email);
+      if (isAdmin) {
+        adminAddBtn.style.display = "inline-block";
+
+        adminAddBtn.onclick = async () => {
+          await updateDoc(userRef, { balance: increment(10000) });
+          await refreshBalance(userRef);
+          alert("관리자 충전 +10,000원 완료");
+        };
+      }
+    });
+  </script>
 </body>
-</html
-  
-<script type="module">
-  import { auth } from "./firebase.js";
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-  onAuthStateChanged(auth, (user) => {
-    if (!user) {
-      // 로그인 안 돼 있으면 로그인 페이지로
-      location.href = "login.html";
-    } else {
-      console.log("로그인 유지됨:", user.uid);
-    }
-  });
-</script>
+</html>
