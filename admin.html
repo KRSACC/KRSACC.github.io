@@ -7,13 +7,14 @@
   <style>
     body { font-family: Arial, sans-serif; background:#f5f5f5; margin:0; padding:20px; }
     h1 { text-align:center; margin: 8px 0 18px; }
-    .card { background:#fff; border-radius:12px; padding:18px; margin:12px auto; max-width:760px; }
+    .card { background:#fff; border-radius:12px; padding:18px; margin:12px auto; max-width:900px; }
     .item { border:1px solid #eee; border-radius:10px; padding:12px; margin-top:10px; }
     .row { display:flex; gap:10px; flex-wrap:wrap; }
     button { padding:10px 12px; border:none; border-radius:10px; background:#111; color:#fff; cursor:pointer; }
     button.secondary { background:#666; }
     button.danger { background:#b00020; }
     .muted { color:#777; font-size:13px; margin-top:6px; line-height:1.45; }
+    .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#eee; font-size:12px; }
     input { width:100%; padding:10px; border:1px solid #ddd; border-radius:10px; margin-top:8px; }
   </style>
 </head>
@@ -31,7 +32,12 @@
 
 <div class="card">
   <h3>충전 요청 (대기중)</h3>
-  <div id="pendingList">불러오는 중...</div>
+  <div id="pendingCharges">불러오는 중...</div>
+</div>
+
+<div class="card">
+  <h3>구매 주문 (대기중)</h3>
+  <div id="pendingOrders">불러오는 중...</div>
 </div>
 
 <script type="module">
@@ -44,113 +50,118 @@
 
   const ADMIN_EMAIL = "killgg0108@gmail.com";
   const adminInfo = document.getElementById("adminInfo");
-  const pendingList = document.getElementById("pendingList");
   const refreshBtn = document.getElementById("refreshBtn");
+  const pendingCharges = document.getElementById("pendingCharges");
+  const pendingOrders = document.getElementById("pendingOrders");
 
-  function fmt(n){ return (n||0).toLocaleString(); }
+  const fmt = n => (n||0).toLocaleString();
 
-  // ✅ 인덱스 없이 동작:
-  // where(status == pending)만 가져오고 JS로 createdAt 내림차순 정렬
-  async function loadPending() {
-    pendingList.innerHTML = "";
-
-    const q = query(
-      collection(db, "chargeRequests"),
-      where("status", "==", "pending")
-    );
-
+  // ---------- 충전 요청 ----------
+  async function loadPendingCharges() {
+    pendingCharges.innerHTML = "";
+    const q = query(collection(db, "chargeRequests"), where("status", "==", "pending"));
     const snap = await getDocs(q);
 
     if (snap.empty) {
-      pendingList.innerHTML = `<div class="muted">대기중인 충전 요청이 없습니다.</div>`;
+      pendingCharges.innerHTML = `<div class="muted">대기중인 충전 요청이 없습니다.</div>`;
       return;
     }
 
     const arr = [];
     snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
-    arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    arr.sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
 
     arr.forEach(r => {
-      const id = r.id;
-
       const div = document.createElement("div");
       div.className = "item";
       div.innerHTML = `
         <div><b>${fmt(r.amount)}원</b> / 입금자명: <b>${r.depositor || "-"}</b></div>
         <div class="muted">요청자: ${r.email || r.uid}</div>
         <div class="muted">요청시간: ${r.createdAt ? new Date(r.createdAt).toLocaleString() : "-"}</div>
-        <div style="margin-top:10px;">
-          <input id="note-${id}" placeholder="메모(선택): 예) 12/15 21:10 입금확인" />
-          <div class="row" style="margin-top:10px;">
-            <button id="approve-${id}">승인(잔액 반영)</button>
-            <button class="danger" id="reject-${id}">거절</button>
-          </div>
+        <input id="note-c-${r.id}" placeholder="메모(선택)" />
+        <div class="row" style="margin-top:10px;">
+          <button id="approve-c-${r.id}">승인(잔액 반영)</button>
+          <button class="danger" id="reject-c-${r.id}">거절</button>
         </div>
       `;
-      pendingList.appendChild(div);
+      pendingCharges.appendChild(div);
 
-      document.getElementById(`approve-${id}`).onclick = async () => {
-        try {
-          const note = document.getElementById(`note-${id}`).value.trim();
+      document.getElementById(`approve-c-${r.id}`).onclick = async () => {
+        const note = document.getElementById(`note-c-${r.id}`).value.trim();
+        const userRef = doc(db, "users", r.uid);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) return alert("users 문서 없음");
 
-          // 1) 유저 잔액 증가
-          const userRef = doc(db, "users", r.uid);
-          const userSnap = await getDoc(userRef);
-          if (!userSnap.exists()) {
-            alert("해당 유저 users 문서가 없습니다. (회원가입 시 users 생성 필요)");
-            return;
-          }
-          await updateDoc(userRef, { balance: increment(r.amount || 0) });
-
-          // 2) 요청 상태 승인 처리
-          await updateDoc(doc(db, "chargeRequests", id), {
-            status: "approved",
-            approvedAt: Date.now(),
-            note: note || ""
-          });
-
-          alert("승인 완료: 잔액 반영됨");
-          await loadPending();
-        } catch (e) {
-          alert("오류: " + e.message);
-        }
+        await updateDoc(userRef, { balance: increment(r.amount || 0) });
+        await updateDoc(doc(db, "chargeRequests", r.id), {
+          status: "approved", approvedAt: Date.now(), note
+        });
+        alert("충전 승인 완료");
+        loadPendingCharges();
       };
 
-      document.getElementById(`reject-${id}`).onclick = async () => {
-        try {
-          const note = document.getElementById(`note-${id}`).value.trim();
-
-          await updateDoc(doc(db, "chargeRequests", id), {
-            status: "rejected",
-            rejectedAt: Date.now(),
-            note: note || ""
-          });
-
-          alert("거절 처리 완료");
-          await loadPending();
-        } catch (e) {
-          alert("오류: " + e.message);
-        }
+      document.getElementById(`reject-c-${r.id}`).onclick = async () => {
+        const note = document.getElementById(`note-c-${r.id}`).value.trim();
+        await updateDoc(doc(db, "chargeRequests", r.id), {
+          status: "rejected", rejectedAt: Date.now(), note
+        });
+        alert("거절 처리 완료");
+        loadPendingCharges();
       };
     });
   }
 
-  refreshBtn.onclick = loadPending;
+  // ---------- 구매 주문 ----------
+  async function loadPendingOrders() {
+    pendingOrders.innerHTML = "";
+    const q = query(collection(db, "purchases"), where("status", "==", "pending"));
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      pendingOrders.innerHTML = `<div class="muted">대기중인 구매 주문이 없습니다.</div>`;
+      return;
+    }
+
+    const arr = [];
+    snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
+    arr.sort((a,b) => (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+
+    arr.forEach(r => {
+      const div = document.createElement("div");
+      div.className = "item";
+      div.innerHTML = `
+        <div><b>${r.product}</b> / ${fmt(r.price)}원</div>
+        <div class="muted">구매자: ${r.email || r.uid}</div>
+        <div class="muted">주문시간: ${r.createdAt?.toDate ? r.createdAt.toDate().toLocaleString() : "-"}</div>
+        <div class="row" style="margin-top:10px;">
+          <button id="done-o-${r.id}">처리완료</button>
+        </div>
+      `;
+      pendingOrders.appendChild(div);
+
+      document.getElementById(`done-o-${r.id}`).onclick = async () => {
+        await updateDoc(doc(db, "purchases", r.id), {
+          status: "done",
+          doneAt: Date.now()
+        });
+        alert("주문 처리 완료");
+        loadPendingOrders();
+      };
+    });
+  }
+
+  refreshBtn.onclick = async () => {
+    await loadPendingCharges();
+    await loadPendingOrders();
+  };
 
   onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      alert("관리자 로그인이 필요합니다.");
-      location.href = "login.html";
-      return;
-    }
-    if (user.email !== ADMIN_EMAIL) {
-      alert("관리자만 접근 가능합니다.");
-      location.href = "index.html";
-      return;
-    }
+    if (!user) return location.href = "login.html";
+    if (user.email !== ADMIN_EMAIL) return location.href = "index.html";
 
     adminInfo.innerText = "관리자 로그인: " + user.email;
-    await loadPending();
+    await loadPendingCharges();
+    await loadPendingOrders();
   });
 </script>
 
