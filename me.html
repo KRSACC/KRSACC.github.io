@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>내 정보 - KRSACC</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f5f5f5; margin:0; padding:20px; }
+    h1 { text-align:center; margin: 8px 0 18px; }
+    .card { background:#fff; border-radius:12px; padding:18px; margin:12px auto; max-width:760px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    button { padding:10px 12px; border:none; border-radius:10px; background:#111; color:#fff; cursor:pointer; }
+    button.secondary { background:#666; }
+    .muted { color:#777; font-size:13px; margin-top:6px; line-height:1.45; }
+    .item { border:1px solid #eee; border-radius:10px; padding:12px; margin-top:10px; }
+    .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#eee; font-size:12px; margin-left:6px; }
+  </style>
+</head>
+<body>
+
+<h1>내 정보</h1>
+
+<div class="card">
+  <div id="status" class="muted">확인 중...</div>
+  <div class="row" style="margin-top:12px;">
+    <button onclick="location.href='index.html'">메인으로</button>
+    <button class="secondary" onclick="location.href='charge.html'">충전하기</button>
+    <button class="secondary" onclick="location.href='shop.html'">상품으로</button>
+    <button class="secondary" id="logoutBtn">로그아웃</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3>계정 정보</h3>
+  <div class="muted">이메일: <b id="email">-</b></div>
+  <div class="muted">UID: <b id="uid">-</b></div>
+  <div class="muted">현재 잔액: <b id="balance">불러오는 중...</b></div>
+</div>
+
+<div class="card">
+  <h3>내 충전 요청</h3>
+  <div id="chargeList" class="muted">불러오는 중...</div>
+</div>
+
+<div class="card">
+  <h3>내 구매 내역</h3>
+  <div id="purchaseList" class="muted">불러오는 중...</div>
+</div>
+
+<script type="module">
+  import { auth, db } from "./firebase.js";
+  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    doc, getDoc,
+    collection, query, where, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const statusEl = document.getElementById("status");
+  const emailEl = document.getElementById("email");
+  const uidEl = document.getElementById("uid");
+  const balanceEl = document.getElementById("balance");
+  const chargeList = document.getElementById("chargeList");
+  const purchaseList = document.getElementById("purchaseList");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  const fmt = n => (n||0).toLocaleString();
+  const ts = v => v ? new Date(v).toLocaleString() : "-";
+
+  function statusText(s){
+    if (s === "approved") return "승인됨";
+    if (s === "rejected") return "거절됨";
+    return "대기중";
+  }
+
+  async function loadBalance(uid) {
+    const ref = doc(db, "users", uid);
+    const snap = await getDoc(ref);
+    const data = snap.data() || {};
+    balanceEl.innerText = fmt(data.balance || 0) + "원";
+  }
+
+  async function loadCharges(uid) {
+    chargeList.innerHTML = "";
+    const q = query(collection(db, "chargeRequests"), where("uid", "==", uid));
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      chargeList.innerHTML = `<div class="muted">요청 내역이 없습니다.</div>`;
+      return;
+    }
+
+    const rows = [];
+    snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+    rows.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+
+    rows.forEach(r => {
+      chargeList.innerHTML += `
+        <div class="item">
+          <div><b>${fmt(r.amount)}원</b><span class="badge">${statusText(r.status)}</span></div>
+          <div class="muted">입금자명: ${r.depositor || "-"}</div>
+          <div class="muted">요청시간: ${ts(r.createdAt)}</div>
+          ${r.note ? `<div class="muted">메모: ${r.note}</div>` : ""}
+        </div>
+      `;
+    });
+  }
+
+  async function loadPurchases(uid) {
+    purchaseList.innerHTML = "";
+    const q = query(collection(db, "purchases"), where("uid", "==", uid));
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      purchaseList.innerHTML = `<div class="muted">구매 내역이 없습니다.</div>`;
+      return;
+    }
+
+    const rows = [];
+    snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+
+    // createdAt(serverTimestamp)는 객체 형태일 수 있어서 방어적으로 정렬
+    rows.sort((a,b) => {
+      const aT = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : (a.createdAt || 0);
+      const bT = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : (b.createdAt || 0);
+      return bT - aT;
+    });
+
+    rows.forEach(r => {
+      const time =
+        r.createdAt?.toDate ? r.createdAt.toDate().toLocaleString()
+        : ts(r.createdAt);
+
+      purchaseList.innerHTML += `
+        <div class="item">
+          <div><b>${r.product || "-"}</b> / ${fmt(r.price)}원</div>
+          <div class="muted">주문시간: ${time}</div>
+          ${r.status ? `<div class="muted">상태: ${r.status}</div>` : ""}
+        </div>
+      `;
+    });
+  }
+
+  logoutBtn.onclick = async () => {
+    await signOut(auth);
+    location.href = "login.html";
+  };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      location.href = "login.html";
+      return;
+    }
+
+    statusEl.innerText = "로그인됨";
+    emailEl.innerText = user.email || "-";
+    uidEl.innerText = user.uid;
+
+    await loadBalance(user.uid);
+    await loadCharges(user.uid);
+    await loadPurchases(user.uid);
+  });
+</script>
+
+</body>
+</html>
