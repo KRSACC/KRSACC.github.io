@@ -6,27 +6,30 @@
   <title>상품 - KRSACC</title>
   <style>
     body { font-family: Arial, sans-serif; background:#f5f5f5; margin:0; padding:20px; }
-    h1 { text-align:center; }
-    .top { max-width:760px; margin:0 auto 12px; }
-    .card { background:#fff; border-radius:12px; padding:18px; margin:12px auto; max-width:760px; }
-    .product { border:1px solid #eee; border-radius:10px; padding:12px; margin-top:12px; text-align:center; }
-    img { width:100%; max-width:520px; border-radius:10px; }
-    button { margin-top:10px; width:100%; padding:12px; background:#111; color:#fff; border:none; border-radius:10px; cursor:pointer; }
-    .row { display:flex; gap:10px; flex-wrap:wrap; }
-    .row button { width:auto; flex:1; }
+    h1 { text-align:center; margin: 8px 0 18px; }
+    .card { background:#fff; border-radius:12px; padding:18px; margin:12px auto; max-width:520px; }
+    .product { border:1px solid #eee; border-radius:12px; padding:14px; margin-top:12px; text-align:center; }
+    img { width:100%; border-radius:10px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    button { padding:12px; border:none; border-radius:10px; background:#111; color:#fff; cursor:pointer; width:100%; }
+    button.secondary { background:#666; }
     .muted { color:#777; font-size:13px; margin-top:6px; line-height:1.45; }
   </style>
 </head>
 <body>
 
-<div class="top">
-  <h1>상품 목록</h1>
-  <div class="muted" id="userInfo">확인 중...</div>
-  <div class="muted"><b>내 잔액:</b> <span id="balance">불러오는 중...</span></div>
-</div>
+<h1>상품 목록</h1>
 
 <div class="card">
+  <div><b>현재 잔액:</b> <span id="balance">불러오는 중...</span></div>
+  <div class="muted" id="userInfo"></div>
+  <div class="row">
+    <button class="secondary" onclick="location.href='index.html'">메인으로</button>
+    <button class="secondary" onclick="location.href='charge.html'">충전하기</button>
+  </div>
+</div>
 
+<div class="card" id="products">
   <div class="product">
     <img src="https://via.placeholder.com/400x250" alt="상품 이미지">
     <h2>상품명 예시 1</h2>
@@ -47,12 +50,6 @@
     <p>가격: 30,000원</p>
     <button data-name="상품명 예시 3" data-price="30000">구매하기</button>
   </div>
-
-  <div class="row" style="margin-top:14px;">
-    <button onclick="location.href='index.html'">메인으로</button>
-    <button onclick="location.href='charge.html'">충전하기</button>
-  </div>
-
 </div>
 
 <script type="module">
@@ -60,31 +57,37 @@
   import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
     doc, getDoc, setDoc, runTransaction,
-    collection, addDoc
+    collection, addDoc, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const balanceEl = document.getElementById("balance");
   const userInfoEl = document.getElementById("userInfo");
+  const productsEl = document.getElementById("products");
+
+  function fmt(n){ return (n||0).toLocaleString(); }
 
   async function ensureUserDoc(user) {
-    const ref = doc(db, "users", user.uid);
-    const snap = await getDoc(ref);
+    const userRef = doc(db, "users", user.uid);
+    const snap = await getDoc(userRef);
     if (!snap.exists()) {
-      await setDoc(ref, { email: user.email || "", balance: 0, createdAt: Date.now() });
+      await setDoc(userRef, {
+        email: user.email || "",
+        balance: 0,
+        createdAt: Date.now()
+      });
     }
-    return ref;
+    return userRef;
   }
 
   async function refreshBalance(userRef) {
     const snap = await getDoc(userRef);
     const data = snap.data() || {};
-    balanceEl.innerText = (data.balance || 0).toLocaleString() + "원";
-    return data.balance || 0;
+    balanceEl.innerText = fmt(data.balance || 0) + "원";
+    return (data.balance || 0);
   }
 
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
-      alert("로그인이 필요합니다.");
       location.href = "login.html";
       return;
     }
@@ -94,43 +97,44 @@
     const userRef = await ensureUserDoc(user);
     await refreshBalance(userRef);
 
-    // 버튼들 구매 이벤트 연결
-    document.querySelectorAll("button[data-price]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const name = btn.dataset.name;
-        const price = parseInt(btn.dataset.price, 10);
+    // 구매 버튼 이벤트 (이벤트 위임)
+    productsEl.addEventListener("click", async (e) => {
+      const btn = e.target.closest("button[data-price]");
+      if (!btn) return;
 
-        btn.disabled = true;
+      const name = btn.dataset.name;
+      const price = parseInt(btn.dataset.price, 10);
 
-        try {
-          // ✅ 트랜잭션: 잔액 확인 후 차감 (동시성 안전)
-          await runTransaction(db, async (tx) => {
-            const snap = await tx.get(userRef);
-            const bal = (snap.data()?.balance || 0);
+      btn.disabled = true;
+      try {
+        // ✅ 트랜잭션: 잔액 확인 후 차감(동시에 여러 클릭해도 안전)
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(userRef);
+          if (!snap.exists()) throw new Error("users 문서가 없습니다.");
 
-            if (bal < price) throw new Error("잔액이 부족합니다.");
+          const current = snap.data().balance || 0;
+          if (current < price) throw new Error("잔액이 부족합니다.");
 
-            tx.update(userRef, { balance: bal - price });
-          });
+          tx.update(userRef, { balance: current - price });
+        });
 
-          // ✅ 주문 저장(관리자가 확인용)
-          await addDoc(collection(db, "orders"), {
-            uid: user.uid,
-            email: user.email || "",
-            product: name,
-            price: price,
-            status: "pending",
-            createdAt: Date.now()
-          });
+        // ✅ 구매내역 저장(관리자가 나중에 확인 가능)
+        await addDoc(collection(db, "purchases"), {
+          uid: user.uid,
+          email: user.email || "",
+          product: name,
+          price,
+          createdAt: serverTimestamp()
+        });
 
-          await refreshBalance(userRef);
-          alert("구매 요청이 접수되었습니다.\n관리자 확인 후 처리됩니다.");
-        } catch (e) {
-          alert("구매 실패: " + (e.message || e));
-        } finally {
-          btn.disabled = false;
-        }
-      });
+        alert("구매 요청이 접수되었습니다.\n관리자 확인 후 처리됩니다.");
+        await refreshBalance(userRef);
+
+      } catch (err) {
+        alert(err.message || String(err));
+      } finally {
+        btn.disabled = false;
+      }
     });
   });
 </script>
