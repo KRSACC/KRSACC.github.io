@@ -11,6 +11,8 @@
     label { display:block; margin-top:10px; font-size:14px; color:#333; }
     input { width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; margin-top:6px; font-size:14px; }
     button { width:100%; padding:12px; border:none; border-radius:10px; background:#111; color:#fff; cursor:pointer; margin-top:12px; }
+    .row { display:flex; gap:10px; }
+    .row > button { flex:1; }
     .muted { color:#777; font-size:13px; margin-top:6px; line-height:1.45; }
     .list { margin-top:10px; }
     .item { border:1px solid #eee; border-radius:10px; padding:12px; margin-top:10px; }
@@ -31,7 +33,7 @@
   <div class="muted">
     은행: <b>토스증권</b><br/>
     계좌번호: <b>134-01-503079</b><br/>
-    입금자명: <b>로그인한 이메일/아이디</b> 권장
+    입금자명: <b>로그인한 이메일/아이디로 입금</b> 추천
   </div>
 </div>
 
@@ -45,9 +47,13 @@
   <input id="amount" type="number" placeholder="예: 10000" />
 
   <button id="submitBtn">충전 요청 제출</button>
-  <button onclick="location.href='index.html'">메인으로</button>
 
-  <div class="muted">※ 잔액 미반영 시, 디스코드 티켓으로 문의 바랍니다.</div>
+  <div class="row">
+    <button style="background:#666;" onclick="location.href='index.html'">메인으로</button>
+    <button style="background:#666;" onclick="location.href='shop.html'">상품으로</button>
+  </div>
+
+  <div class="muted">※ 요청 제출 후, 관리자가 입금 확인하면 잔액이 반영됩니다.</div>
 </div>
 
 <div class="card">
@@ -71,6 +77,8 @@
   const submitBtn = document.getElementById("submitBtn");
   const myRequestsEl = document.getElementById("myRequests");
 
+  function fmt(n){ return (n||0).toLocaleString(); }
+
   async function ensureUserDoc(user) {
     const ref = doc(db, "users", user.uid);
     const snap = await getDoc(ref);
@@ -83,7 +91,7 @@
   async function loadBalance(userRef) {
     const snap = await getDoc(userRef);
     const data = snap.data() || {};
-    balanceEl.innerText = (data.balance || 0) + "원";
+    balanceEl.innerText = fmt(data.balance || 0) + "원";
   }
 
   function statusText(status) {
@@ -92,14 +100,15 @@
     return "대기중";
   }
 
-  // ✅ 인덱스 없이 동작하는 방식:
-  // where(uid == ...) 만으로 가져오고, JS로 createdAt 내림차순 정렬
   async function loadMyRequests(uid) {
     myRequestsEl.innerHTML = "";
+
+    // ✅ 인덱스 없이 가능: where만 사용 (정렬은 JS에서)
     const q = query(
       collection(db, "chargeRequests"),
       where("uid", "==", uid)
     );
+
     const snap = await getDocs(q);
 
     if (snap.empty) {
@@ -107,17 +116,15 @@
       return;
     }
 
-    const arr = [];
-    snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
+    // JS 정렬 (createdAt 내림차순)
+    const rows = [];
+    snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+    rows.sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-    // createdAt 내림차순 정렬
-    arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-    arr.forEach(r => {
+    rows.forEach(r => {
       myRequestsEl.innerHTML += `
         <div class="item">
-          <div><b>${(r.amount || 0).toLocaleString()}원</b>
-          <span class="badge">${statusText(r.status)}</span></div>
+          <div><b>${fmt(r.amount)}원</b> <span class="badge">${statusText(r.status)}</span></div>
           <div class="muted">입금자명: ${r.depositor || "-"}</div>
           <div class="muted">요청시간: ${r.createdAt ? new Date(r.createdAt).toLocaleString() : "-"}</div>
           ${r.note ? `<div class="muted">메모: ${r.note}</div>` : ""}
@@ -128,7 +135,6 @@
 
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
-      alert("로그인이 필요합니다.");
       location.href = "login.html";
       return;
     }
@@ -140,13 +146,15 @@
     await loadMyRequests(user.uid);
 
     submitBtn.onclick = async () => {
+      const depositor = depositorEl.value.trim();
+      const amount = parseInt(amountEl.value, 10);
+
+      if (!depositor) return alert("입금자명을 입력해줘.");
+      if (!amount || amount <= 0) return alert("충전 금액을 올바르게 입력해줘.");
+
+      submitBtn.disabled = true;
+
       try {
-        const depositor = depositorEl.value.trim();
-        const amount = parseInt(amountEl.value, 10);
-
-        if (!depositor) return alert("입금자명을 입력해줘.");
-        if (!amount || amount <= 0) return alert("충전 금액을 올바르게 입력해줘.");
-
         await addDoc(collection(db, "chargeRequests"), {
           uid: user.uid,
           email: user.email || "",
@@ -161,8 +169,11 @@
         amountEl.value = "";
 
         await loadMyRequests(user.uid);
+
       } catch (e) {
-        alert("오류: " + e.message);
+        alert(e.message || String(e));
+      } finally {
+        submitBtn.disabled = false;
       }
     };
   });
