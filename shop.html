@@ -6,53 +6,53 @@
   <title>상품 - KRSACC</title>
   <style>
     body { font-family: Arial, sans-serif; background:#f5f5f5; margin:0; padding:20px; }
-    h1 { text-align:center; margin: 8px 0 18px; }
+    h1 { text-align:center; }
+    .top { max-width:760px; margin:0 auto 12px; }
     .card { background:#fff; border-radius:12px; padding:18px; margin:12px auto; max-width:760px; }
-    .product { background:#fff; border-radius:12px; padding:16px; margin:12px auto; max-width:520px; text-align:center; }
-    img { width:100%; border-radius:12px; }
+    .product { border:1px solid #eee; border-radius:10px; padding:12px; margin-top:12px; text-align:center; }
+    img { width:100%; max-width:520px; border-radius:10px; }
     button { margin-top:10px; width:100%; padding:12px; background:#111; color:#fff; border:none; border-radius:10px; cursor:pointer; }
     .row { display:flex; gap:10px; flex-wrap:wrap; }
-    .row button { width:auto; }
-    .muted { color:#777; font-size:13px; margin-top:8px; line-height:1.45; }
-    .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#eee; font-size:12px; }
+    .row button { width:auto; flex:1; }
+    .muted { color:#777; font-size:13px; margin-top:6px; line-height:1.45; }
   </style>
 </head>
 <body>
 
-<h1>상품 목록</h1>
+<div class="top">
+  <h1>상품 목록</h1>
+  <div class="muted" id="userInfo">확인 중...</div>
+  <div class="muted"><b>내 잔액:</b> <span id="balance">불러오는 중...</span></div>
+</div>
 
 <div class="card">
-  <div><b>현재 잔액:</b> <span id="balance">불러오는 중...</span></div>
-  <div class="muted" id="userInfo"></div>
-  <div class="row" style="margin-top:10px;">
+
+  <div class="product">
+    <img src="https://via.placeholder.com/400x250" alt="상품 이미지">
+    <h2>상품명 예시 1</h2>
+    <p>가격: 10,000원</p>
+    <button data-name="상품명 예시 1" data-price="10000">구매하기</button>
+  </div>
+
+  <div class="product">
+    <img src="https://via.placeholder.com/400x250" alt="상품 이미지">
+    <h2>상품명 예시 2</h2>
+    <p>가격: 20,000원</p>
+    <button data-name="상품명 예시 2" data-price="20000">구매하기</button>
+  </div>
+
+  <div class="product">
+    <img src="https://via.placeholder.com/400x250" alt="상품 이미지">
+    <h2>상품명 예시 3</h2>
+    <p>가격: 30,000원</p>
+    <button data-name="상품명 예시 3" data-price="30000">구매하기</button>
+  </div>
+
+  <div class="row" style="margin-top:14px;">
     <button onclick="location.href='index.html'">메인으로</button>
     <button onclick="location.href='charge.html'">충전하기</button>
   </div>
-  <div class="muted">
-    ※ 구매하면 Firestore 잔액(users.balance)에서 바로 차감됩니다.
-  </div>
-</div>
 
-<!-- ✅ 상품들 (원하는 만큼 복붙해서 늘리면 됨) -->
-<div class="product">
-  <img src="https://via.placeholder.com/400x250" alt="상품 이미지">
-  <h2>상품명 예시 1</h2>
-  <p>가격: <b>10,000원</b> <span class="badge">즉시 차감</span></p>
-  <button id="buy1">구매하기</button>
-</div>
-
-<div class="product">
-  <img src="https://via.placeholder.com/400x250" alt="상품 이미지">
-  <h2>상품명 예시 2</h2>
-  <p>가격: <b>20,000원</b> <span class="badge">즉시 차감</span></p>
-  <button id="buy2">구매하기</button>
-</div>
-
-<div class="product">
-  <img src="https://via.placeholder.com/400x250" alt="상품 이미지">
-  <h2>상품명 예시 3</h2>
-  <p>가격: <b>30,000원</b> <span class="badge">즉시 차감</span></p>
-  <button id="buy3">구매하기</button>
 </div>
 
 <script type="module">
@@ -78,37 +78,8 @@
   async function refreshBalance(userRef) {
     const snap = await getDoc(userRef);
     const data = snap.data() || {};
-    balanceEl.innerText = ((data.balance || 0).toLocaleString()) + "원";
+    balanceEl.innerText = (data.balance || 0).toLocaleString() + "원";
     return data.balance || 0;
-  }
-
-  // ✅ 구매: Firestore 잔액에서 차감 + 주문내역 저장
-  async function buy(user, userRef, price, name) {
-    // 1) 트랜잭션으로 잔액 확인 후 차감(동시 구매에도 안전)
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(userRef);
-      const data = snap.data() || {};
-      const balance = Number(data.balance || 0);
-
-      if (balance < price) {
-        throw new Error("잔액이 부족합니다.");
-      }
-
-      tx.update(userRef, { balance: balance - price });
-    });
-
-    // 2) 주문 기록(관리자 확인용)
-    await addDoc(collection(db, "orders"), {
-      uid: user.uid,
-      email: user.email || "",
-      product: name,
-      price,
-      status: "pending",
-      createdAt: Date.now()
-    });
-
-    alert("구매 요청이 접수되었습니다.\n관리자 확인 후 처리됩니다.");
-    await refreshBalance(userRef);
   }
 
   onAuthStateChanged(auth, async (user) => {
@@ -123,10 +94,44 @@
     const userRef = await ensureUserDoc(user);
     await refreshBalance(userRef);
 
-    // 버튼 연결
-    document.getElementById("buy1").onclick = () => buy(user, userRef, 10000, "상품명 예시 1").catch(e => alert(e.message));
-    document.getElementById("buy2").onclick = () => buy(user, userRef, 20000, "상품명 예시 2").catch(e => alert(e.message));
-    document.getElementById("buy3").onclick = () => buy(user, userRef, 30000, "상품명 예시 3").catch(e => alert(e.message));
+    // 버튼들 구매 이벤트 연결
+    document.querySelectorAll("button[data-price]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const name = btn.dataset.name;
+        const price = parseInt(btn.dataset.price, 10);
+
+        btn.disabled = true;
+
+        try {
+          // ✅ 트랜잭션: 잔액 확인 후 차감 (동시성 안전)
+          await runTransaction(db, async (tx) => {
+            const snap = await tx.get(userRef);
+            const bal = (snap.data()?.balance || 0);
+
+            if (bal < price) throw new Error("잔액이 부족합니다.");
+
+            tx.update(userRef, { balance: bal - price });
+          });
+
+          // ✅ 주문 저장(관리자가 확인용)
+          await addDoc(collection(db, "orders"), {
+            uid: user.uid,
+            email: user.email || "",
+            product: name,
+            price: price,
+            status: "pending",
+            createdAt: Date.now()
+          });
+
+          await refreshBalance(userRef);
+          alert("구매 요청이 접수되었습니다.\n관리자 확인 후 처리됩니다.");
+        } catch (e) {
+          alert("구매 실패: " + (e.message || e));
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
   });
 </script>
 
