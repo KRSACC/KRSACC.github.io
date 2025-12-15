@@ -42,13 +42,12 @@
 
     .form-container { padding: 40px 30px; }
 
-    .form-group { margin-bottom: 20px; }
+    .form-group { margin-bottom: 18px; }
 
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-size: 14px;
-      color: #333;
+    label { font-size: 14px; color: #333; display: block; margin-bottom: 6px; }
+
+    .pw-wrap {
+      position: relative;
     }
 
     input {
@@ -59,9 +58,15 @@
       font-size: 14px;
     }
 
-    input:focus {
-      outline: none;
-      border-color: #667eea;
+    .toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 13px;
+      color: #667eea;
+      user-select: none;
     }
 
     button {
@@ -74,6 +79,12 @@
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
 
     .link {
@@ -84,15 +95,15 @@
 
     .link a {
       color: #667eea;
-      text-decoration: none;
       font-weight: 600;
+      text-decoration: none;
     }
 
     .error {
       color: red;
       font-size: 13px;
-      margin-bottom: 10px;
       text-align: center;
+      margin-bottom: 10px;
     }
   </style>
 </head>
@@ -110,12 +121,13 @@
 
     <div class="form-group">
       <label>이메일 (아이디로 사용됩니다)</label>
-      <input type="email" id="email" placeholder="your@email.com">
+      <input type="email" id="email">
     </div>
 
-    <div class="form-group">
+    <div class="form-group pw-wrap">
       <label>비밀번호</label>
-      <input type="password" id="password" placeholder="••••••••">
+      <input type="password" id="password">
+      <span class="toggle" id="togglePw">보이기</span>
     </div>
 
     <button id="loginBtn">로그인</button>
@@ -131,22 +143,35 @@
   import { signInWithEmailAndPassword } from
     "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-  const errorEl = document.getElementById("error");
+  const pw = document.getElementById("password");
+  const toggle = document.getElementById("togglePw");
+  const btn = document.getElementById("loginBtn");
+  const error = document.getElementById("error");
 
-  document.getElementById("loginBtn").onclick = async () => {
+  toggle.onclick = () => {
+    pw.type = pw.type === "password" ? "text" : "password";
+    toggle.innerText = pw.type === "password" ? "보이기" : "숨기기";
+  };
+
+  btn.onclick = async () => {
     const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value;
+    const password = pw.value;
 
     if (!email || !password) {
-      errorEl.innerText = "이메일과 비밀번호를 입력하세요.";
+      error.innerText = "이메일과 비밀번호를 입력하세요.";
       return;
     }
+
+    btn.disabled = true;
+    btn.innerText = "로그인 중...";
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
       location.href = "index.html";
     } catch (e) {
-      errorEl.innerText = "로그인 실패: " + e.message;
+      error.innerText = "로그인 실패";
+      btn.disabled = false;
+      btn.innerText = "로그인";
     }
   };
 </script>
