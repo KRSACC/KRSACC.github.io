@@ -50,33 +50,15 @@
       padding: 20px;
       border-radius: 10px;
     }
-
-    .links {
-      display: flex;
-      gap: 10px;
-      margin-top: 10px;
-      flex-wrap: wrap;
-    }
-
-    .links a {
-      text-decoration: none;
-      padding: 10px 14px;
-      border-radius: 8px;
-      color: white;
-      font-size: 14px;
-    }
-
-    .discord { background: #5865F2; }
-    .telegram { background: #2AABEE; }
   </style>
 </head>
 
 <body>
 
-<!-- 로그인 상태 바 -->
 <div class="topbar">
   <div class="user" id="userInfo">로그인 확인 중...</div>
   <div>
+    <button onclick="location.href='me.html'">내 정보</button>
     <button id="logoutBtn" style="display:none;">로그아웃</button>
   </div>
 </div>
@@ -97,25 +79,10 @@
   <button onclick="location.href='shop.html'">상품 보러가기</button>
 </div>
 
-<div class="box">
-  <h2>커뮤니티 / 문의</h2>
-  <div class="links">
-    <!-- 🔗 여기에 네 실제 링크 넣으면 됨 -->
-    <a class="discord" href="https://discord.gg/여기에코드" target="_blank">
-      Discord
-    </a>
-    <a class="telegram" href="https://t.me/여기에아이디" target="_blank">
-      Telegram
-    </a>
-  </div>
-</div>
-
 <script type="module">
   import { auth, db } from "./firebase.js";
-  import { onAuthStateChanged, signOut } from
-    "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { doc, getDoc } from
-    "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
   const userInfo = document.getElementById("userInfo");
   const logoutBtn = document.getElementById("logoutBtn");
@@ -127,7 +94,7 @@
       return;
     }
 
-    userInfo.innerText = `로그인됨: ${user.email}`;
+    userInfo.innerText = "로그인됨: " + user.email;
     logoutBtn.style.display = "inline-block";
 
     const ref = doc(db, "users", user.uid);
