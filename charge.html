@@ -1,82 +1,161 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>충전하기 - KRSACC</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 {
-      text-align: center;
-    }
-    .box {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      max-width: 400px;
-      margin: 20px auto;
-    }
-    button {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      background: black;
-      color: white;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-top: 10px;
-    }
+    body { font-family: Arial, sans-serif; background:#f5f5f5; margin:0; padding:20px; }
+    .card { background:#fff; border-radius:12px; padding:18px; margin:12px auto; max-width:520px; }
+    h1 { text-align:center; margin: 8px 0 18px; }
+    label { display:block; margin-top:10px; font-size:14px; color:#333; }
+    input { width:100%; padding:12px; border:1px solid #ddd; border-radius:10px; margin-top:6px; font-size:14px; }
+    button { width:100%; padding:12px; border:none; border-radius:10px; background:#111; color:#fff; cursor:pointer; margin-top:12px; }
+    .row { display:flex; gap:10px; }
+    .row > div { flex:1; }
+    .muted { color:#777; font-size:13px; margin-top:6px; line-height:1.45; }
+    .list { margin-top:10px; }
+    .item { border:1px solid #eee; border-radius:10px; padding:12px; margin-top:10px; }
+    .badge { display:inline-block; padding:4px 8px; border-radius:999px; background:#eee; font-size:12px; }
   </style>
 </head>
 <body>
 
 <h1>충전하기</h1>
 
-<div class="box">
-  <p><strong>입금 계좌</strong></p>
-  <p>토스증권 134-01-503079</p>
-  <p>예금주: ㅈㅂㄱ</p>
-
-  <hr>
-
-  <p>입금자명에 <strong>아이디</strong>를 적어주세요.</p>
-  <p>입금 후 관리자 확인 후 잔액이 충전됩니다.</p>
-
-  <button onclick="history.back()">뒤로가기</button>
+<div class="card">
+  <div><b>현재 잔액:</b> <span id="balance">불러오는 중...</span></div>
+  <div class="muted" id="userInfo"></div>
 </div>
-  
+
+<div class="card">
+  <h3>입금 안내</h3>
+  <div class="muted">
+    은행: <b>여기에 은행명</b><br/>
+    계좌번호: <b>여기에 계좌번호</b><br/>
+    입금자명: <b>로그인한 이메일/아이디로 입금</b> 추천
+  </div>
+</div>
+
+<div class="card">
+  <h3>충전 요청</h3>
+
+  <label>입금자명</label>
+  <input id="depositor" placeholder="입금자명 (예: 홍길동)" />
+
+  <label>충전 금액</label>
+  <input id="amount" type="number" placeholder="예: 10000" />
+
+  <button id="submitBtn">충전 요청 제출</button>
+  <button onclick="location.href='index.html'">메인으로</button>
+
+  <div class="muted">※ 요청 제출 후, 관리자가 입금 확인하면 잔액이 반영됩니다.</div>
+</div>
+
+<div class="card">
+  <h3>내 충전 요청 내역</h3>
+  <div class="list" id="myRequests">불러오는 중...</div>
+</div>
+
 <script type="module">
   import { auth, db } from "./firebase.js";
-
-  console.log("Firebase 연결 완료");
-</script>
-
-<script type="module">
-  import { auth } from "./firebase.js";
   import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    doc, getDoc, setDoc,
+    collection, addDoc,
+    query, where, orderBy, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  onAuthStateChanged(auth, (user) => {
-    if (!user) {
-      // 로그인 안 되어있으면 로그인 페이지로 보내기
-      location.href = "login.html";
+  const balanceEl = document.getElementById("balance");
+  const userInfoEl = document.getElementById("userInfo");
+  const depositorEl = document.getElementById("depositor");
+  const amountEl = document.getElementById("amount");
+  const submitBtn = document.getElementById("submitBtn");
+  const myRequestsEl = document.getElementById("myRequests");
+
+  async function ensureUserDoc(user) {
+    const ref = doc(db, "users", user.uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      await setDoc(ref, { email: user.email || "", balance: 0, createdAt: Date.now() });
     }
+    return ref;
+  }
+
+  async function loadBalance(userRef) {
+    const snap = await getDoc(userRef);
+    const data = snap.data() || {};
+    balanceEl.innerText = (data.balance || 0) + "원";
+  }
+
+  function statusBadge(status) {
+    if (status === "approved") return "승인됨";
+    if (status === "rejected") return "거절됨";
+    return "대기중";
+  }
+
+  async function loadMyRequests(uid) {
+    myRequestsEl.innerHTML = "";
+    const q = query(
+      collection(db, "chargeRequests"),
+      where("uid", "==", uid),
+      orderBy("createdAt", "desc")
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      myRequestsEl.innerHTML = `<div class="muted">아직 요청 내역이 없습니다.</div>`;
+      return;
+    }
+    snap.forEach(d => {
+      const r = d.data();
+      myRequestsEl.innerHTML += `
+        <div class="item">
+          <div><b>${(r.amount || 0).toLocaleString()}원</b> <span class="badge">${statusBadge(r.status)}</span></div>
+          <div class="muted">입금자명: ${r.depositor || "-"}</div>
+          <div class="muted">요청시간: ${r.createdAt ? new Date(r.createdAt).toLocaleString() : "-"}</div>
+          ${r.note ? `<div class="muted">메모: ${r.note}</div>` : ""}
+        </div>
+      `;
+    });
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      alert("로그인이 필요합니다.");
+      location.href = "login.html";
+      return;
+    }
+
+    userInfoEl.innerText = "로그인: " + (user.email || user.uid);
+
+    const userRef = await ensureUserDoc(user);
+    await loadBalance(userRef);
+    await loadMyRequests(user.uid);
+
+    submitBtn.addEventListener("click", async () => {
+      const depositor = depositorEl.value.trim();
+      const amount = parseInt(amountEl.value, 10);
+
+      if (!depositor) return alert("입금자명을 입력해줘.");
+      if (!amount || amount <= 0) return alert("충전 금액을 올바르게 입력해줘.");
+
+      await addDoc(collection(db, "chargeRequests"), {
+        uid: user.uid,
+        email: user.email || "",
+        depositor,
+        amount,
+        status: "pending",
+        createdAt: Date.now()
+      });
+
+      alert("충전 요청이 접수되었습니다.\n입금 확인 후 반영됩니다.");
+      depositorEl.value = "";
+      amountEl.value = "";
+
+      await loadMyRequests(user.uid);
+    }, { once: true });
   });
 </script>
 
 </body>
 </html>
-
-<script type="module">
-  import { auth } from "./firebase.js";
-  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-  onAuthStateChanged(auth, (user) => {
-    if (!user) {
-      location.href = "login.html";
-    }
-  });
-</script>
