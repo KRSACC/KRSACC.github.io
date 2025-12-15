@@ -38,7 +38,7 @@
   import { auth, db } from "./firebase.js";
   import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
-    collection, query, where, orderBy, getDocs,
+    collection, query, where, getDocs,
     doc, getDoc, updateDoc, increment
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -49,13 +49,16 @@
 
   function fmt(n){ return (n||0).toLocaleString(); }
 
+  // ✅ 인덱스 없이 동작:
+  // where(status == pending)만 가져오고 JS로 createdAt 내림차순 정렬
   async function loadPending() {
     pendingList.innerHTML = "";
+
     const q = query(
       collection(db, "chargeRequests"),
-      where("status", "==", "pending"),
-      orderBy("createdAt", "desc")
+      where("status", "==", "pending")
     );
+
     const snap = await getDocs(q);
 
     if (snap.empty) {
@@ -63,9 +66,12 @@
       return;
     }
 
-    snap.forEach(d => {
-      const r = d.data();
-      const id = d.id;
+    const arr = [];
+    snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
+    arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    arr.forEach(r => {
+      const id = r.id;
 
       const div = document.createElement("div");
       div.className = "item";
@@ -84,39 +90,47 @@
       pendingList.appendChild(div);
 
       document.getElementById(`approve-${id}`).onclick = async () => {
-        const note = document.getElementById(`note-${id}`).value.trim();
+        try {
+          const note = document.getElementById(`note-${id}`).value.trim();
 
-        // 1) 유저 잔액 증가
-        const userRef = doc(db, "users", r.uid);
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) {
-          alert("해당 유저 users 문서가 없습니다. (회원가입 시 users 생성이 필요)");
-          return;
+          // 1) 유저 잔액 증가
+          const userRef = doc(db, "users", r.uid);
+          const userSnap = await getDoc(userRef);
+          if (!userSnap.exists()) {
+            alert("해당 유저 users 문서가 없습니다. (회원가입 시 users 생성 필요)");
+            return;
+          }
+          await updateDoc(userRef, { balance: increment(r.amount || 0) });
+
+          // 2) 요청 상태 승인 처리
+          await updateDoc(doc(db, "chargeRequests", id), {
+            status: "approved",
+            approvedAt: Date.now(),
+            note: note || ""
+          });
+
+          alert("승인 완료: 잔액 반영됨");
+          await loadPending();
+        } catch (e) {
+          alert("오류: " + e.message);
         }
-        await updateDoc(userRef, { balance: increment(r.amount || 0) });
-
-        // 2) 요청 상태 승인 처리
-        await updateDoc(doc(db, "chargeRequests", id), {
-          status: "approved",
-          approvedAt: Date.now(),
-          note: note || ""
-        });
-
-        alert("승인 완료: 잔액 반영됨");
-        await loadPending();
       };
 
       document.getElementById(`reject-${id}`).onclick = async () => {
-        const note = document.getElementById(`note-${id}`).value.trim();
+        try {
+          const note = document.getElementById(`note-${id}`).value.trim();
 
-        await updateDoc(doc(db, "chargeRequests", id), {
-          status: "rejected",
-          rejectedAt: Date.now(),
-          note: note || ""
-        });
+          await updateDoc(doc(db, "chargeRequests", id), {
+            status: "rejected",
+            rejectedAt: Date.now(),
+            note: note || ""
+          });
 
-        alert("거절 처리 완료");
-        await loadPending();
+          alert("거절 처리 완료");
+          await loadPending();
+        } catch (e) {
+          alert("오류: " + e.message);
+        }
       };
     });
   }
