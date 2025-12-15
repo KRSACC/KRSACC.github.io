@@ -1,31 +1,161 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>내 정보 - KRSACC</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>내 정보 - KRSACC</title>
+  <style>
+    :root{
+      --bg:#f5f5f5; --card:#fff; --text:#111; --muted:#777; --line:#eee;
+      --btn:#111; --btn2:#666; --danger:#b00020; --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
+    header{
+      background:linear-gradient(180deg,#111 0%, #0c0c0c 100%);
+      color:#fff;padding:26px 16px;text-align:center;
+    }
+    header h1{margin:0;font-size:34px;letter-spacing:1px}
+    header p{margin:8px 0 0;opacity:.9}
+    .topbar{
+      background:#fff;border-bottom:1px solid var(--line);
+      display:flex;gap:10px;align-items:center;justify-content:space-between;
+      padding:10px 14px; position:sticky; top:0; z-index:10;
+    }
+    .topbar .left{font-size:14px;color:#333}
+    .topbar .right{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{
+      padding:10px 12px;border:none;border-radius:10px;cursor:pointer;
+      background:var(--btn);color:#fff;font-weight:700
+    }
+    .btn.secondary{background:var(--btn2)}
+    .btn.danger{background:var(--danger)}
+    .wrap{max-width:900px;margin:18px auto;padding:0 14px}
+    .card{
+      background:var(--card);border-radius:var(--radius);
+      padding:18px;margin:14px 0;border:1px solid #f0f0f0;
+      box-shadow:0 1px 0 rgba(0,0,0,.03);
+    }
+    .muted{color:var(--muted);font-size:13px;line-height:1.45}
+    .title{font-size:18px;font-weight:900;margin:0 0 8px}
+    .kv{display:grid;grid-template-columns:140px 1fr;gap:10px;margin-top:10px}
+    .kv div{padding:10px;border:1px solid var(--line);border-radius:12px;background:#fff}
+    .kv .k{color:var(--muted);font-weight:700}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    a.linkbtn{display:inline-block;text-decoration:none}
+    @media (max-width:560px){
+      header h1{font-size:28px}
+      .kv{grid-template-columns:1fr}
+    }
+  </style>
 </head>
 <body>
 
-<h1>내 정보</h1>
-<div id="info"></div>
-<h3>알림</h3>
-<div id="noti"></div>
+  <div class="topbar">
+    <div class="left" id="loginLabel">확인 중...</div>
+    <div class="right">
+      <button class="btn secondary" onclick="location.href='index.html'">메인</button>
+      <button class="btn secondary" onclick="location.href='shop.html'">상품</button>
+      <button class="btn secondary" onclick="location.href='charge.html'">충전</button>
+      <button class="btn danger" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
 
-<script type="module">
-import { auth, db } from "./firebase.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  <header>
+    <h1>KRSACC</h1>
+    <p>내 정보</p>
+  </header>
 
-onAuthStateChanged(auth, async user => {
-  if (!user) location.href="login.html";
+  <div class="wrap">
+    <div class="card">
+      <div class="title">계정</div>
+      <div class="kv">
+        <div class="k">아이디(이메일)</div><div id="email">불러오는 중...</div>
+        <div class="k">UID</div><div id="uid">-</div>
+        <div class="k">잔액</div><div id="balance">-</div>
+      </div>
 
-  const q = query(collection(db,"notifications"), where("uid","==",user.uid));
-  const snap = await getDocs(q);
+      <div class="row" style="margin-top:12px;">
+        <button class="btn" id="adminBtn" style="display:none;">관리자 페이지</button>
+      </div>
 
-  document.getElementById("noti").innerHTML = snap.empty
-    ? "알림 없음"
-    : snap.docs.map(d=>`<div>${d.data().message}</div>`).join("");
-});
-</script>
+      <div class="muted" id="statusMsg" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="title">바로가기</div>
+      <div class="row">
+        <!-- ✅ 원하는 링크로 바꾸기 -->
+        <a class="linkbtn" href="https://discord.com" target="_blank" rel="noopener">
+          <button class="btn secondary">디스코드</button>
+        </a>
+        <a class="linkbtn" href="https://t.me" target="_blank" rel="noopener">
+          <button class="btn secondary">텔레그램</button>
+        </a>
+      </div>
+      <div class="muted">※ 새 창으로 열립니다.</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import {
+      onAuthStateChanged,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const ADMIN_EMAIL = "killgg0108@gmail.com";
+
+    const loginLabel = document.getElementById("loginLabel");
+    const emailEl    = document.getElementById("email");
+    const uidEl      = document.getElementById("uid");
+    const balanceEl  = document.getElementById("balance");
+    const statusMsg  = document.getElementById("statusMsg");
+    const adminBtn   = document.getElementById("adminBtn");
+    const logoutBtn  = document.getElementById("logoutBtn");
+
+    function fmt(n){ return (n||0).toLocaleString(); }
+
+    logoutBtn.onclick = async () => {
+      await signOut(auth);
+      location.href = "login.html";
+    };
+
+    adminBtn.onclick = () => location.href = "admin.html";
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        location.href = "login.html";
+        return;
+      }
+
+      loginLabel.textContent = "로그인됨: " + (user.email || user.uid);
+      emailEl.textContent = user.email || "(이메일 없음)";
+      uidEl.textContent = user.uid;
+
+      // 관리자 버튼 자동 표시
+      if ((user.email || "") === ADMIN_EMAIL) {
+        adminBtn.style.display = "inline-block";
+      }
+
+      try {
+        const userRef = doc(db, "users", user.uid);
+        const snap = await getDoc(userRef);
+        if (snap.exists()) {
+          const data = snap.data() || {};
+          balanceEl.textContent = fmt(data.balance || 0) + "원";
+        } else {
+          balanceEl.textContent = "0원";
+          statusMsg.textContent = "users 문서가 아직 없어요. (회원가입/첫 접속 시 생성되게 구성 필요)";
+        }
+      } catch (e) {
+        console.error(e);
+        statusMsg.textContent = "오류: " + (e?.message || e);
+      }
+    });
+  </script>
+
 </body>
 </html>
