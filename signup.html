@@ -28,11 +28,6 @@
       animation: slideUp 0.5s ease-out;
     }
 
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(30px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
     .header {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
@@ -44,24 +39,25 @@
 
     .form-group { margin-bottom: 18px; }
 
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-size: 14px;
-      color: #333;
-    }
+    label { font-size: 14px; color: #333; display: block; margin-bottom: 6px; }
+
+    .pw-wrap { position: relative; }
 
     input {
       width: 100%;
       padding: 12px;
       border: 2px solid #e0e0e0;
       border-radius: 10px;
-      font-size: 14px;
     }
 
-    input:focus {
-      outline: none;
-      border-color: #667eea;
+    .toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 13px;
+      color: #667eea;
     }
 
     button {
@@ -77,6 +73,8 @@
       margin-top: 10px;
     }
 
+    button:disabled { opacity: 0.6; }
+
     .link {
       text-align: center;
       margin-top: 16px;
@@ -85,4 +83,100 @@
 
     .link a {
       color: #667eea;
-      text-decoration: no
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .error {
+      color: red;
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>회원가입 🎉</h1>
+    <p>새로운 계정을 만들어보세요</p>
+  </div>
+
+  <div class="form-container">
+    <div class="error" id="error"></div>
+
+    <div class="form-group">
+      <label>이메일 (아이디로 사용됩니다)</label>
+      <input type="email" id="email">
+    </div>
+
+    <div class="form-group pw-wrap">
+      <label>비밀번호</label>
+      <input type="password" id="password">
+      <span class="toggle" data-target="password">보이기</span>
+    </div>
+
+    <div class="form-group pw-wrap">
+      <label>비밀번호 확인</label>
+      <input type="password" id="password2">
+      <span class="toggle" data-target="password2">보이기</span>
+    </div>
+
+    <button id="signupBtn">회원가입</button>
+
+    <div class="link">
+      이미 계정이 있으신가요? <a href="login.html">로그인</a>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth } from "./firebase.js";
+  import { createUserWithEmailAndPassword } from
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const error = document.getElementById("error");
+  const btn = document.getElementById("signupBtn");
+
+  document.querySelectorAll(".toggle").forEach(t => {
+    t.onclick = () => {
+      const input = document.getElementById(t.dataset.target);
+      input.type = input.type === "password" ? "text" : "password";
+      t.innerText = input.type === "password" ? "보이기" : "숨기기";
+    };
+  });
+
+  btn.onclick = async () => {
+    const email = document.getElementById("email").value.trim();
+    const p1 = password.value;
+    const p2 = password2.value;
+
+    if (!email || !p1 || !p2) {
+      error.innerText = "모든 항목을 입력하세요.";
+      return;
+    }
+
+    if (p1 !== p2) {
+      error.innerText = "비밀번호가 일치하지 않습니다.";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "가입 중...";
+
+    try {
+      await createUserWithEmailAndPassword(auth, email, p1);
+      alert("회원가입 완료! 로그인해주세요.");
+      location.href = "login.html";
+    } catch (e) {
+      error.innerText = "회원가입 실패";
+      btn.disabled = false;
+      btn.innerText = "회원가입";
+    }
+  };
+</script>
+
+</body>
+</html>
