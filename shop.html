@@ -1,48 +1,213 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>상품 - KRSACC</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>상품 - KRSACC</title>
+  <style>
+    :root{
+      --bg:#f5f5f5;
+      --card:#fff;
+      --text:#111;
+      --muted:#777;
+      --line:#eee;
+      --btn:#111;
+      --btn2:#666;
+      --danger:#b00020;
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
+    header{
+      background:linear-gradient(180deg,#111 0%, #0c0c0c 100%);
+      color:#fff;padding:26px 16px;text-align:center;
+    }
+    header h1{margin:0;font-size:34px;letter-spacing:1px}
+    header p{margin:8px 0 0;opacity:.9}
+    .topbar{
+      background:#fff;border-bottom:1px solid var(--line);
+      display:flex;gap:10px;align-items:center;justify-content:space-between;
+      padding:10px 14px; position:sticky; top:0; z-index:10;
+    }
+    .topbar .left{font-size:14px;color:#333}
+    .topbar .right{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{
+      padding:10px 12px;border:none;border-radius:10px;cursor:pointer;
+      background:var(--btn);color:#fff;font-weight:700
+    }
+    .btn.secondary{background:var(--btn2)}
+    .btn.danger{background:var(--danger)}
+    .wrap{max-width:900px;margin:18px auto;padding:0 14px}
+    .card{
+      background:var(--card);border-radius:var(--radius);
+      padding:18px;margin:14px 0; box-shadow:0 1px 0 rgba(0,0,0,.03);
+      border:1px solid #f0f0f0;
+    }
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .muted{color:var(--muted);font-size:13px;line-height:1.45}
+    .balance{font-size:22px;font-weight:900;margin:10px 0}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .item{
+      border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff;
+      display:flex;flex-direction:column;gap:10px;
+    }
+    .item h3{margin:0;font-size:18px}
+    .price{font-weight:900}
+    .item .btn{width:100%}
+    @media (max-width:860px){ .grid{grid-template-columns:repeat(2,1fr)} }
+    @media (max-width:560px){
+      header h1{font-size:28px}
+      .grid{grid-template-columns:1fr}
+      .topbar{gap:8px}
+    }
+  </style>
 </head>
 <body>
 
-<h1>상품</h1>
+  <div class="topbar">
+    <div class="left" id="loginLabel">확인 중...</div>
+    <div class="right">
+      <button class="btn secondary" onclick="location.href='index.html'">메인</button>
+      <button class="btn secondary" onclick="location.href='charge.html'">충전</button>
+      <button class="btn secondary" onclick="location.href='me.html'">내 정보</button>
+      <button class="btn danger" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
 
-<button onclick="buy('상품A', 10000)">상품A (10,000원)</button>
+  <header>
+    <h1>KRSACC</h1>
+    <p>상품 구매</p>
+  </header>
 
-<script type="module">
-import { auth, db } from "./firebase.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { doc, getDoc, updateDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  <div class="wrap">
+    <div class="card">
+      <div class="muted">현재 잔액</div>
+      <div class="balance" id="balance">불러오는 중...</div>
+      <div class="muted" id="statusMsg"></div>
+    </div>
 
-onAuthStateChanged(auth, user => {
-  if (!user) location.href = "login.html";
-});
+    <div class="card">
+      <h2 style="margin:0 0 12px;">상품</h2>
 
-async function buy(name, price) {
-  const user = auth.currentUser;
-  const ref = doc(db,"users",user.uid);
-  const snap = await getDoc(ref);
-  const bal = snap.data().balance || 0;
+      <div class="grid" id="productGrid"></div>
 
-  if (bal < price) {
-    alert("잔액 부족");
-    return;
-  }
+      <div class="muted" style="margin-top:12px;">
+        ※ 구매 기록은 Firestore에 저장됩니다.
+      </div>
+    </div>
+  </div>
 
-  await updateDoc(ref, { balance: bal - price });
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import {
+      onAuthStateChanged,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-  await addDoc(collection(db,"purchases"), {
-    uid: user.uid,
-    email: user.email,
-    product: name,
-    price,
-    status: "pending",
-    createdAt: Date.now()
-  });
+    import {
+      doc, getDoc,
+      collection, addDoc,
+      runTransaction,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  alert("구매 요청 완료 (관리자 처리 대기)");
-}
-</script>
+    const loginLabel = document.getElementById("loginLabel");
+    const balanceEl  = document.getElementById("balance");
+    const statusMsg  = document.getElementById("statusMsg");
+    const grid       = document.getElementById("productGrid");
+    const logoutBtn  = document.getElementById("logoutBtn");
+
+    // ✅ 여기 상품만 바꾸면 됨
+    const PRODUCTS = [
+      { name: "상품A", price: 10000, desc: "즉시 차감" },
+      { name: "상품B", price: 20000, desc: "즉시 차감" },
+      { name: "상품C", price: 30000, desc: "즉시 차감" }
+    ];
+
+    function fmt(n){ return (n||0).toLocaleString(); }
+
+    function renderProducts(user, userRef){
+      grid.innerHTML = "";
+      PRODUCTS.forEach((p) => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = `
+          <h3>${p.name}</h3>
+          <div class="muted">${p.desc}</div>
+          <div class="price">${fmt(p.price)}원</div>
+          <button class="btn" data-name="${p.name}" data-price="${p.price}">
+            구매하기
+          </button>
+        `;
+        grid.appendChild(div);
+
+        div.querySelector("button").onclick = async () => {
+          const price = Number(p.price);
+          const name = p.name;
+
+          statusMsg.textContent = "처리 중...";
+          try {
+            await runTransaction(db, async (tx) => {
+              const snap = await tx.get(userRef);
+              if (!snap.exists()) throw new Error("users 문서가 없습니다.");
+
+              const data = snap.data() || {};
+              const bal = Number(data.balance || 0);
+
+              if (bal < price) {
+                throw new Error("잔액이 부족합니다.");
+              }
+
+              // 잔액 차감
+              tx.update(userRef, { balance: bal - price });
+
+              // 구매내역 저장
+              const buyRef = doc(collection(db, "purchases"));
+              tx.set(buyRef, {
+                uid: user.uid,
+                email: user.email || "",
+                product: name,
+                price: price,
+                createdAt: Date.now()
+              });
+            });
+
+            await refreshBalance(userRef);
+            statusMsg.textContent = "구매 완료!";
+            alert("구매 완료!");
+          } catch (e) {
+            console.error(e);
+            statusMsg.textContent = "오류: " + (e?.message || e);
+            alert("오류: " + (e?.message || e));
+          }
+        };
+      });
+    }
+
+    async function refreshBalance(userRef){
+      const snap = await getDoc(userRef);
+      const data = snap.data() || {};
+      balanceEl.textContent = fmt(data.balance || 0) + "원";
+    }
+
+    logoutBtn.onclick = async () => {
+      await signOut(auth);
+      location.href = "login.html";
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        location.href = "login.html";
+        return;
+      }
+
+      loginLabel.textContent = "로그인됨: " + (user.email || user.uid);
+
+      const userRef = doc(db, "users", user.uid);
+      await refreshBalance(userRef);
+      renderProducts(user, userRef);
+    });
+  </script>
+
 </body>
 </html>
