@@ -6,108 +6,350 @@
   <title>KRSACC</title>
 
   <style>
-    body {
+    :root{
+      --bg:#f4f6f8;
+      --card:#ffffff;
+      --text:#111;
+      --muted:#6b7280;
+      --line:#e5e7eb;
+      --shadow: 0 10px 30px rgba(0,0,0,.08);
+      --radius:16px;
+      --btn:#111;
+      --btn2:#666;
+      --danger:#b00020;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
       font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      margin: 0;
-      padding: 0;
+      background: var(--bg);
+      color: var(--text);
     }
 
-    header {
-      background: #111;
-      color: white;
-      padding: 20px;
-      text-align: center;
+    /* 상단 로그인/메뉴 바 */
+    .topbar{
+      background:#fff;
+      border-bottom:1px solid var(--line);
+      padding:10px 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      position:sticky;
+      top:0;
+      z-index:50;
+    }
+    .topbar .left{
+      font-size:14px;
+      color:#111;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:55%;
+    }
+    .topbar .right{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
     }
 
-    .topbar {
-      background: #fff;
-      padding: 12px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #eee;
-      font-size: 14px;
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      height:34px;
+      padding:0 14px;
+      border-radius:10px;
+      border:0;
+      cursor:pointer;
+      color:#fff;
+      background: var(--btn);
+      font-weight:700;
+      font-size:13px;
+    }
+    .pill.secondary{ background: var(--btn2); }
+    .pill.danger{ background: var(--danger); }
+
+    /* 큰 배너 */
+    .hero{
+      background: linear-gradient(180deg, #111 0%, #000 100%);
+      color:#fff;
+      padding:26px 14px;
+      text-align:center;
+    }
+    .hero h1{
+      margin:0;
+      font-size:38px;
+      letter-spacing:2px;
+    }
+    .hero p{
+      margin:10px 0 0;
+      opacity:.9;
+      font-size:14px;
     }
 
-    .topbar .user {
-      color: #333;
+    .wrap{
+      max-width:980px;
+      margin:0 auto;
+      padding:18px 14px 40px;
     }
 
-    .topbar button {
-      padding: 6px 10px;
-      border: none;
-      background: #111;
-      color: #fff;
-      border-radius: 6px;
-      cursor: pointer;
-      margin-left: 6px;
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:14px;
+    }
+    @media (max-width:860px){
+      .grid{ grid-template-columns: 1fr; }
+      .topbar .left{ max-width:48%; }
     }
 
-    .box {
-      background: white;
-      margin: 20px;
-      padding: 20px;
-      border-radius: 10px;
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow: var(--shadow);
+      padding:18px;
+    }
+
+    .card h2{
+      margin:0 0 10px;
+      font-size:20px;
+    }
+    .muted{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.45;
+    }
+
+    .big{
+      font-size:28px;
+      font-weight:900;
+      margin:8px 0 10px;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+
+    .btn{
+      padding:12px 14px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:#fff;
+      cursor:pointer;
+      font-weight:800;
+      font-size:14px;
+    }
+    .btn.primary{
+      background:#111;
+      color:#fff;
+      border:0;
+    }
+    .btn.gray{
+      background:#f3f4f6;
+      border:1px solid var(--line);
+      color:#111;
+    }
+
+    /* 작은 리스트 */
+    .kv{
+      display:grid;
+      grid-template-columns: 140px 1fr;
+      gap:10px;
+      margin-top:10px;
+    }
+    .kv .k{
+      background:#f3f4f6;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px 12px;
+      font-weight:900;
+      color:#444;
+    }
+    .kv .v{
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px 12px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .divider{
+      height:1px;
+      background:var(--line);
+      margin:14px 0;
     }
   </style>
 </head>
 
 <body>
+  <!-- ✅ 상단 버튼바(메인에도 동일하게) -->
+  <div class="topbar">
+    <div class="left" id="loginText">로그인 확인중...</div>
 
-<div class="topbar">
-  <div class="user" id="userInfo">로그인 확인 중...</div>
-  <div>
-    <button onclick="location.href='me.html'">내 정보</button>
-    <button id="logoutBtn" style="display:none;">로그아웃</button>
+    <div class="right">
+      <button class="pill secondary" onclick="location.href='index.html'">메인</button>
+      <button class="pill secondary" onclick="location.href='shop.html'">상품</button>
+      <button class="pill secondary" onclick="location.href='charge.html'">충전</button>
+      <button class="pill" onclick="location.href='me.html'">내 정보</button>
+      <button class="pill danger" id="logoutBtn">로그아웃</button>
+    </div>
   </div>
-</div>
 
-<header>
-  <h1>KRSACC</h1>
-  <p>수동 충전 · 수동 구매 시스템</p>
-</header>
+  <!-- ✅ 큰 배너 -->
+  <div class="hero">
+    <h1>KRSACC</h1>
+    <p>수동 충전 · 수동 구매 시스템</p>
+  </div>
 
-<div class="box">
-  <h2>내 잔액</h2>
-  <p><strong id="balance">불러오는 중...</strong></p>
-  <button onclick="location.href='charge.html'">충전하기</button>
-</div>
+  <div class="wrap">
+    <div class="grid">
+      <!-- 잔액 카드 -->
+      <div class="card">
+        <h2>내 잔액</h2>
+        <div class="muted">Firestore(users.balance) 기준으로 표시됩니다.</div>
 
-<div class="box">
-  <h2>상품</h2>
-  <button onclick="location.href='shop.html'">상품 보러가기</button>
-</div>
+        <div class="big" id="balanceText">불러오는 중...</div>
 
-<script type="module">
-  import { auth, db } from "./firebase.js";
-  import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        <div class="row">
+          <button class="btn primary" onclick="location.href='charge.html'">충전하러 가기</button>
+          <button class="btn gray" onclick="location.href='shop.html'">상품 보러가기</button>
+          <button class="btn" onclick="location.href='me.html'">내 정보 보기</button>
+        </div>
 
-  const userInfo = document.getElementById("userInfo");
-  const logoutBtn = document.getElementById("logoutBtn");
-  const balanceEl = document.getElementById("balance");
+        <div class="divider"></div>
 
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      location.href = "login.html";
-      return;
+        <!-- 관리자 빠른 버튼(관리자만 보이게) -->
+        <div class="row">
+          <button class="btn primary" id="adminBtn" style="display:none;">관리자 페이지</button>
+        </div>
+
+        <div class="muted" id="hintText" style="margin-top:10px;">
+          (팁) 화면이 갱신 안 되면 Ctrl+F5 또는 시크릿모드로 확인해봐.
+        </div>
+      </div>
+
+      <!-- 계정 요약 카드 -->
+      <div class="card">
+        <h2>로그인 정보</h2>
+        <div class="muted">비밀번호는 보안상 표시 불가.</div>
+
+        <div class="kv">
+          <div class="k">아이디(이메일)</div>
+          <div class="v" id="emailText">-</div>
+
+          <div class="k">UID</div>
+          <div class="v" id="uidText">-</div>
+
+          <div class="k">마지막 로그인</div>
+          <div class="v" id="lastLoginText">-</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <h2 style="margin-top:0;">바로가기</h2>
+        <div class="muted">버튼 누르면 새 창으로 열립니다.</div>
+        <div class="row">
+          <button class="btn" id="discordBtn">디스코드</button>
+          <button class="btn" id="telegramBtn">텔레그램</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✅ Firebase 로직 -->
+  <script type="module">
+    import { auth, db } from "./firebase.js";
+    import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // ✅ 관리자 이메일(너)
+    const ADMIN_EMAIL = "killgg0108@gmail.com";
+
+    const loginText = document.getElementById("loginText");
+    const balanceText = document.getElementById("balanceText");
+    const emailText = document.getElementById("emailText");
+    const uidText = document.getElementById("uidText");
+    const lastLoginText = document.getElementById("lastLoginText");
+
+    const logoutBtn = document.getElementById("logoutBtn");
+    const adminBtn = document.getElementById("adminBtn");
+
+    // 바로가기(원하는 링크로 바꿔도 됨)
+    const discordBtn = document.getElementById("discordBtn");
+    const telegramBtn = document.getElementById("telegramBtn");
+    discordBtn.onclick = () => window.open("https://discord.com", "_blank");
+    telegramBtn.onclick = () => window.open("https://t.me", "_blank");
+
+    async function ensureUserDoc(user){
+      const ref = doc(db, "users", user.uid);
+      const snap = await getDoc(ref);
+      if(!snap.exists()){
+        await setDoc(ref, {
+          email: user.email || "",
+          balance: 0,
+          createdAt: Date.now()
+        });
+      }
+      return ref;
     }
 
-    userInfo.innerText = "로그인됨: " + user.email;
-    logoutBtn.style.display = "inline-block";
+    function fmtMoney(n){
+      const num = Number(n || 0);
+      return num.toLocaleString() + "원";
+    }
 
-    const ref = doc(db, "users", user.uid);
-    const snap = await getDoc(ref);
-    const data = snap.data() || {};
-    balanceEl.innerText = (data.balance || 0).toLocaleString() + "원";
-  });
+    function fmtTime(ms){
+      if(!ms) return "-";
+      try{
+        return new Date(ms).toLocaleString();
+      }catch(e){
+        return "-";
+      }
+    }
 
-  logoutBtn.onclick = async () => {
-    await signOut(auth);
-    location.href = "login.html";
-  };
-</script>
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
+      location.href = "login.html";
+    });
 
+    onAuthStateChanged(auth, async (user) => {
+      if(!user){
+        // 로그인 안됨 → 로그인 페이지로
+        location.href = "login.html";
+        return;
+      }
+
+      loginText.textContent = "로그인됨: " + (user.email || user.uid);
+      emailText.textContent = (user.email || "-");
+      uidText.textContent = user.uid;
+
+      // 마지막 로그인 시간(가능하면 표시)
+      lastLoginText.textContent = fmtTime(user.metadata?.lastSignInTime ? Date.parse(user.metadata.lastSignInTime) : null);
+
+      // users 문서 보장 + 잔액 가져오기
+      const userRef = await ensureUserDoc(user);
+      const snap = await getDoc(userRef);
+      const data = snap.data() || {};
+      balanceText.textContent = fmtMoney(data.balance);
+
+      // 관리자면 버튼 보이기
+      if(user.email === ADMIN_EMAIL){
+        adminBtn.style.display = "inline-block";
+        adminBtn.onclick = () => location.href = "admin.html";
+      } else {
+        adminBtn.style.display = "none";
+      }
+    });
+  </script>
 </body>
 </html>
